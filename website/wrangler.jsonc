@@ -1,0 +1,8 @@
+// Static information page for deadbolt.osborne.vc. Deployed 2026-11-18 (Worker deadbolt-site).
+// Redeploy: cd website && npx wrangler@4 deploy
+{
+  "name": "deadbolt-site",
+  "compatibility_date": "2026-11-01",
+  "assets": { "directory": "./public" },
+  "routes": [{ "pattern": "deadbolt.osborne.vc", "custom_domain": true }]
+}

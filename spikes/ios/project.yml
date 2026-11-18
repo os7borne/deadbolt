@@ -1,0 +1,71 @@
+# Phase 0 spike: iOS app + AutoFill credential provider (passwords, passkeys, save-password on iOS 26.2+).
+# Throwaway. `xcodegen generate` here, then open DeadboltSpike.xcodeproj.
+name: DeadboltSpike
+options:
+  bundleIdPrefix: com.osborne.deadbolt.spike
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+packages:
+  DeadboltCore:
+    path: ../../Core
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: 4CMN2DUGUL
+    CODE_SIGN_STYLE: Automatic
+    TARGETED_DEVICE_FAMILY: "1"
+targets:
+  DeadboltSpike:
+    type: application
+    platform: iOS
+    sources: [App, Shared]
+    dependencies:
+      - package: DeadboltCore
+      - target: DeadboltSpikeAutoFill
+        embed: true
+    entitlements:
+      path: App/App.entitlements
+      properties: &entitlements
+        com.apple.developer.authentication-services.autofill-credential-provider: true
+        com.apple.security.application-groups: [group.com.osborne.deadbolt.spike]
+        keychain-access-groups: [$(AppIdentifierPrefix)com.osborne.deadbolt.spike.shared]
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Deadbolt Spike
+        UILaunchScreen: {}
+        NSFaceIDUsageDescription: Unlock your test vault.
+        DeadboltKeychainGroup: $(DEVELOPMENT_TEAM).com.osborne.deadbolt.spike.shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.osborne.deadbolt.spike
+  DeadboltSpikeAutoFill:
+    type: app-extension
+    platform: iOS
+    sources: [AutoFill, Shared]
+    dependencies:
+      - package: DeadboltCore
+    entitlements:
+      path: AutoFill/AutoFill.entitlements
+      properties: *entitlements
+    info:
+      path: AutoFill/Info.plist
+      properties:
+        CFBundleDisplayName: Deadbolt Spike
+        NSFaceIDUsageDescription: Unlock your test vault.
+        DeadboltKeychainGroup: $(DEVELOPMENT_TEAM).com.osborne.deadbolt.spike.shared
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.authentication-services-credential-provider-ui
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).CredentialProviderViewController
+          NSExtensionAttributes:
+            ASCredentialProviderExtensionShowsConfigurationUI: true
+            ASCredentialProviderExtensionCapabilities:
+              ProvidesPasswords: true
+              ProvidesPasskeys: true
+              SupportsSavePasswordCredentials: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.osborne.deadbolt.spike.autofill
