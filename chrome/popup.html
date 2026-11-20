@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Deadbolt</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon-32.png" alt="" width="22" height="22">
+    <strong id="site">Deadbolt</strong>
+    <span id="status" class="status"></span>
+  </header>
+  <nav id="tabs" role="tablist" aria-label="What to show" hidden></nav>
+  <main id="main" aria-live="polite"></main>
+  <footer>
+    <button id="generate" type="button">Generate password</button>
+    <button id="open" type="button">Open Deadbolt</button>
+  </footer>
+  <p class="note">Nothing is stored in Chrome. Deadbolt for Mac unlocks it and locks it again.</p>
+  <div id="toast" role="status" hidden></div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -3,33 +3,106 @@ import Foundation
 /// The decrypted vault, in memory only while unlocked. All the rules about accounts live here,
 /// so the iOS app, the AutoFill extension, the Mac app and Chrome behave identically.
 public struct Vault: Codable, Equatable, Sendable {
-    public private(set) var logins: [LoginItem]
-    public private(set) var passkeys: [Passkey]
+    public internal(set) var logins: [LoginItem]
+    public internal(set) var passkeys: [Passkey]
     /// The 24 recovery words, kept inside the encrypted vault so they can be shown or printed again
     /// while unlocked (after a fresh Face ID check). Anyone who can open the vault already has everything in it.
     public var recoveryPhrase: String?
+    /// The vault's Mullvad-style account number (digits only). Set when sync is first turned on.
+    public var accountNumber: String?
+    /// The devices that share this vault.
+    public var devices: [DeviceRecord]?
+    /// Deleted logins/passkeys and when, so a delete reaches every device: "login:<uuid>", "passkey:<b64>".
+    public var tombstones: [String: HLC]?
+    /// Clocks for vault-level fields (recoveryPhrase, accountNumber, generator).
+    public var metaClocks: [String: HLC]?
+    /// Password generator preferences, shared by every device (last writer wins as one unit).
+    public var generator: PasswordGenerator.Settings?
+
+    /// Payment cards, identities and secure notes. Empty on vaults made before schema 2.
+    public internal(set) var cards: [CardItem] = []
+    public internal(set) var identities: [IdentityItem] = []
+    public internal(set) var notes: [NoteItem] = []
+    /// What this vault's data needs to be read safely. nil = 1 (logins + passkeys only); 2 adds cards, identities, notes.
+    /// A build that knows an older schema would drop what it can't see on its next save, so newer vaults are refused, not opened.
+    public var schema: Int?
+    public static let currentSchema = 2
 
     public init(logins: [LoginItem] = [], passkeys: [Passkey] = []) {
         self.logins = logins
         self.passkeys = passkeys
     }
 
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let schema = try c.decodeIfPresent(Int.self, forKey: .schema)
+        guard (schema ?? 1) <= Self.currentSchema else { throw DeadboltError.unsupportedVersion(UInt8(clamping: schema ?? 0)) }
+        self.schema = schema
+        logins = try c.decode([LoginItem].self, forKey: .logins)
+        passkeys = try c.decode([Passkey].self, forKey: .passkeys)
+        recoveryPhrase = try c.decodeIfPresent(String.self, forKey: .recoveryPhrase)
+        accountNumber = try c.decodeIfPresent(String.self, forKey: .accountNumber)
+        devices = try c.decodeIfPresent([DeviceRecord].self, forKey: .devices)
+        tombstones = try c.decodeIfPresent([String: HLC].self, forKey: .tombstones)
+        metaClocks = try c.decodeIfPresent([String: HLC].self, forKey: .metaClocks)
+        generator = try c.decodeIfPresent(PasswordGenerator.Settings.self, forKey: .generator)
+        cards = try c.decodeIfPresent([CardItem].self, forKey: .cards) ?? []
+        identities = try c.decodeIfPresent([IdentityItem].self, forKey: .identities) ?? []
+        notes = try c.decodeIfPresent([NoteItem].self, forKey: .notes) ?? []
+    }
+
+    /// Everything stored, of every kind, for counts. (Passkeys belong to logins and aren't counted twice.)
+    public var itemCount: Int { logins.count + cards.count + identities.count + notes.count }
+
     // MARK: lookup
 
-    /// Every account for a site: the preferred one first, then most recently used, then alphabetical.
+    /// Every account for a site, **most recently used first**. Accounts never used come after used ones; among those (and among
+    /// any with the same use time) the ★ preferred one is first, then alphabetical. So ★ is the default until usage takes over.
     public func accounts(for host: String) -> [LoginItem] {
         logins.filter { $0.matches(host: host) }.sorted { a, b in
-            if a.preferred != b.preferred { return a.preferred }
             switch (a.lastUsedAt, b.lastUsedAt) {
             case let (x?, y?) where x != y: return x > y
             case (_?, nil): return true
             case (nil, _?): return false
-            default: return a.username.localizedCaseInsensitiveCompare(b.username) == .orderedAscending
+            default: break
             }
+            if a.preferred != b.preferred { return a.preferred }
+            return a.username.localizedCaseInsensitiveCompare(b.username) == .orderedAscending
         }
     }
 
+    /// Cards, most recently used first; never-used ones after, by name.
+    public var cardsByRecency: [CardItem] {
+        cards.sorted { Self.moreRecent($0.lastUsedAt, $1.lastUsedAt, $0.title, $1.title) }
+    }
+
+    /// Identities, most recently used first; never-used ones after, by name.
+    public var identitiesByRecency: [IdentityItem] {
+        identities.sorted { Self.moreRecent($0.lastUsedAt, $1.lastUsedAt, $0.title.isEmpty ? $0.fullName : $0.title, $1.title.isEmpty ? $1.fullName : $1.title) }
+    }
+
+    static func moreRecent(_ a: Date?, _ b: Date?, _ titleA: String, _ titleB: String) -> Bool {
+        switch (a, b) {
+        case let (x?, y?) where x != y: return x > y
+        case (_?, nil): return true
+        case (nil, _?): return false
+        default: return titleA.localizedCaseInsensitiveCompare(titleB) == .orderedAscending
+        }
+    }
+
+    /// Records that a card or identity was just filled or copied. Does not count as an edit.
+    public mutating func markItemUsed(_ id: UUID, now: Date = Date()) {
+        if let i = cards.firstIndex(where: { $0.id == id }) { cards[i].lastUsedAt = now }
+        else if let i = identities.firstIndex(where: { $0.id == id }) { identities[i].lastUsedAt = now }
+    }
+
     public func login(_ id: UUID) -> LoginItem? { logins.first { $0.id == id } }
+
+    /// A login, only if it belongs to `host` (itself or a subdomain). Anything that releases a password to a web page
+    /// (the browser bridge) must use this, never `login(_:)`: a page must not be able to ask for another site's password.
+    public func login(_ id: UUID, for host: String) -> LoginItem? {
+        accounts(for: host).first { $0.id == id }
+    }
 
     public func passkeys(for relyingPartyID: String) -> [Passkey] {
         passkeys.filter { $0.relyingPartyID == relyingPartyID }
@@ -77,6 +150,31 @@ public struct Vault: Codable, Equatable, Sendable {
         return item.id
     }
 
+    /// Adds a one-time code. With a website it goes on the existing account for (site, username), or becomes a code-only
+    /// account on that site; with no website it is a standalone code entry (like an authenticator app) that is never
+    /// offered for filling. A code-only entry is never the "preferred" account, so it can't push a real login down.
+    @discardableResult
+    public mutating func saveCode(host: String?, title: String?, username: String, secret: String, now: Date = Date()) throws -> UUID {
+        let typed = host?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        var site: String?
+        if !typed.isEmpty {
+            guard let s = Site.normalize(typed) else { throw VaultError.invalidSite }
+            site = s
+        }
+        let user = Self.canonicalUsername(username)
+        if let site, !user.isEmpty,
+           let i = logins.firstIndex(where: { $0.matches(host: site) && Self.canonicalUsername($0.username) == user }) {
+            logins[i].totpSecret = secret
+            logins[i].updatedAt = now
+            return logins[i].id
+        }
+        let name = (title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let item = LoginItem(title: name.isEmpty ? (site.map(Site.displayName) ?? "Code") : name,
+                             sites: site.map { [$0] } ?? [], username: username, password: "", totpSecret: secret, now: now)
+        logins.append(item)
+        return item.id
+    }
+
     // MARK: editing
 
     public mutating func upsert(_ item: LoginItem, now: Date = Date()) {
@@ -101,6 +199,26 @@ public struct Vault: Codable, Equatable, Sendable {
     public mutating func markUsed(_ id: UUID, now: Date = Date()) {
         if let i = logins.firstIndex(where: { $0.id == id }) { logins[i].lastUsedAt = now }
     }
+
+    // MARK: cards, identities, notes
+
+    public mutating func upsert(_ card: CardItem, now: Date = Date()) { upsertItem(\.cards, card, now: now) }
+    public mutating func upsert(_ identity: IdentityItem, now: Date = Date()) { upsertItem(\.identities, identity, now: now) }
+    public mutating func upsert(_ note: NoteItem, now: Date = Date()) { upsertItem(\.notes, note, now: now) }
+
+    public mutating func deleteCard(_ id: UUID) {
+        cards.removeAll { $0.id == id }
+        // A card's billing link must not point at nothing, but deleting an identity never touches a card's own data.
+    }
+    public mutating func deleteIdentity(_ id: UUID) {
+        identities.removeAll { $0.id == id }
+        for i in cards.indices where cards[i].identityID == id { cards[i].identityID = nil }
+    }
+    public mutating func deleteNote(_ id: UUID) { notes.removeAll { $0.id == id } }
+
+    public func card(_ id: UUID) -> CardItem? { cards.first { $0.id == id } }
+    public func identity(_ id: UUID) -> IdentityItem? { identities.first { $0.id == id } }
+    public func note(_ id: UUID) -> NoteItem? { notes.first { $0.id == id } }
 
     // MARK: passkeys
 

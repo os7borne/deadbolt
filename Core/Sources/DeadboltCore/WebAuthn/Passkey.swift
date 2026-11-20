@@ -10,6 +10,8 @@ public struct Passkey: Codable, Equatable, Sendable {
     public let userHandle: Data
     public let privateKey: Data      // P-256 raw representation; lives only inside the encrypted vault
     public let createdAt: Date
+    /// When this passkey was added, for sync. nil on vaults made before sync.
+    public var addedAt: HLC? = nil
 
     public static func create(relyingPartyID: String, userName: String, userHandle: Data) -> Passkey {
         Passkey(credentialID: Random.bytes(16), relyingPartyID: relyingPartyID, userName: userName,
@@ -44,6 +46,8 @@ public enum WebAuthn {
     public struct Registration: Sendable {
         public let credentialID: Data
         public let attestationObject: Data
+        public let authenticatorData: Data   // for browsers' getAuthenticatorData()
+        public let publicKeyDER: Data        // SubjectPublicKeyInfo, for browsers' getPublicKey()
     }
 
     public struct Assertion: Sendable {
@@ -65,7 +69,8 @@ public enum WebAuthn {
             (.text("attStmt"), .map([])),
             (.text("authData"), .bytes(authData)),
         ]).encoded
-        return Registration(credentialID: passkey.credentialID, attestationObject: attestation)
+        return Registration(credentialID: passkey.credentialID, attestationObject: attestation,
+                            authenticatorData: authData, publicKeyDER: try passkey.publicKey.derRepresentation)
     }
 
     /// Signs `authenticatorData || clientDataHash` for a sign-in. The caller must have verified the user first.

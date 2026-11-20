@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Sign in on another subdomain — Deadbolt lab</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="stylesheet" href="/lab/lab.css">
+<script src="/lab/lab.js"></script>
+</head>
+<body><div class="wrap">
+<header class="lab"><img src="/logo.png" alt=""><strong>Deadbolt lab</strong><span style="flex:1"></span><a href="https://deadbolt.osborne.vc/lab/">← All tests</a></header>
+
+<h1>5 · Redirect to another subdomain</h1>
+<div class="expect"><b>Expected:</b> you're on <code id="here"></code>. After signing in you land on
+<code>deadbolt.osborne.vc</code> — same site (<code>osborne.vc</code>), different subdomain — and Deadbolt offers to save there.</div>
+<form class="card" onsubmit="event.preventDefault(); setTimeout(() => location.href = 'https://deadbolt.osborne.vc/lab/welcome.html?case=redirect', 150)">
+  <label for="u">Email</label><input id="u" type="email" autocomplete="username">
+  <label for="p">Password</label><input id="p" type="password" autocomplete="current-password">
+  <div class="row"><button type="submit">Sign in</button></div>
+</form>
+<script>document.getElementById("here").textContent = location.hostname;</script>
+</div></body></html>

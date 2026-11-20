@@ -86,31 +86,95 @@ struct SecondaryButtonStyle: ButtonStyle {
 }
 
 /// 44×44 icon button (copy, reveal…). Always has an accessibility label.
+/// A button whose label shows a checkmark for a moment after it is used: the confirmation for copy actions, in place
+/// of a toast. `label` is given whether the checkmark is showing.
+struct TickButton<Label: View>: View {
+    let action: () -> Void
+    @ViewBuilder let label: (Bool) -> Label
+    @State private var done = false
+    @State private var reset: Task<Void, Never>?
+
+    var body: some View {
+        Button {
+            action()
+            reset?.cancel()
+            withAnimation(.snappy(duration: 0.2)) { done = true }
+            reset = Task {
+                try? await Task.sleep(for: .seconds(1.5))
+                if !Task.isCancelled { withAnimation(.snappy(duration: 0.2)) { done = false } }
+            }
+        } label: { label(done) }
+        .accessibilityValue(done ? "Copied" : "")
+    }
+}
+
+extension Image {
+    /// An icon that turns into a checkmark while `done`.
+    static func tick(_ name: String, done: Bool) -> some View {
+        Image(systemName: done ? "checkmark" : name).contentTransition(.symbolEffect(.replace))
+    }
+}
+
 struct IconButton: View {
     let systemName: String
     let label: String
     var prominent = false
     let action: () -> Void
+
+    /// The copy icon confirms itself with a checkmark; other icons (show/hide…) don't.
+    private var isCopy: Bool { systemName == "doc.on.doc" }
+
     var body: some View {
-        Button(action: action) {
-            Image(systemName: systemName).font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(prominent ? DB.onBrass : DB.text)
-                .frame(width: 44, height: 44)
-                .background(prominent ? DB.brass : DB.control, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        Group {
+            if isCopy { TickButton(action: action) { face($0) } } else { Button(action: action) { face(false) } }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
     }
+
+    private func face(_ done: Bool) -> some View {
+        Image.tick(systemName, done: done).font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(done ? DB.good : (prominent ? DB.onBrass : DB.text))
+            .frame(width: 38, height: 38)
+            .background(done ? DB.goodWash : (prominent ? DB.brass : DB.control), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
 }
 
+/// The site's icon (through Deadbolt's relay) on a light tile, or its first letter while loading / if there's none.
 struct SiteTile: View {
     let title: String
+    var site: String? = nil
     var size: CGFloat = 42
+    @State private var store = IconStore.shared
+
     var body: some View {
-        Text(String(title.prefix(1)).uppercased())
-            .font(.db(size * 0.4, .bold)).foregroundStyle(DB.text)
-            .frame(width: size, height: size)
-            .background(DB.tile(for: title), in: RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+        Group {
+            if let site, IconStore.enabled, let img = store.image(for: site) {
+                Image(platformImage: img).resizable().interpolation(.high).scaledToFit()
+                    .padding(size * 0.14)
+                    .frame(width: size, height: size)
+                    .background(Color(hex: 0xF2F0EA), in: RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+            } else {
+                Text(String(title.prefix(1)).uppercased())
+                    .font(.db(size * 0.4, .bold)).foregroundStyle(DB.text)
+                    .frame(width: size, height: size)
+                    .background(DB.tile(for: title), in: RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+            }
+        }
+        .accessibilityHidden(true)
+        .task(id: site) { if let site { await store.load(site) } }
+    }
+}
+
+/// Just the padlock-and-shield from the logo, filled with the logo's gold (no tile). For headers on dark surfaces.
+struct DeadboltGlyph: View {
+    var height: CGFloat = 20
+    static let gold = LinearGradient(colors: [Color(hex: 0xFFD84A), Color(hex: 0xC88A12)], startPoint: .topLeading, endPoint: .bottomTrailing)
+    var body: some View {
+        Image("LockGlyph").renderingMode(.template).resizable().interpolation(.high).scaledToFit()
+            .frame(height: height)
+            .foregroundStyle(Self.gold)
             .accessibilityHidden(true)
     }
 }

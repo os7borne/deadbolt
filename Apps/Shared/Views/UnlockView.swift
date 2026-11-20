@@ -7,7 +7,10 @@ struct UnlockView: View {
     @State private var error: String?
     @State private var showRecovery = false
     @State private var attempts = 0
+    @State private var prompting = false
+    @State private var cancelled = false
     @FocusState private var focused: Bool
+    @Environment(\.scenePhase) private var phase
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,8 +22,10 @@ struct UnlockView: View {
 
             if session.biometricUnlockAllowed {
                 Button { Task { await biometric() } } label: {
-                    Label("Unlock with \(KeychainKey.biometryName)", systemImage: KeychainKey.biometryName == "Touch ID" ? "touchid" : "faceid")
+                    Label(cancelled ? "Try \(KeychainKey.biometryName) again" : "Unlock with \(KeychainKey.biometryName)",
+                          systemImage: KeychainKey.biometryName == "Touch ID" ? "touchid" : "faceid")
                 }
+                .disabled(prompting)
                 .buttonStyle(PrimaryButtonStyle(height: 58))
                 .padding(.bottom, 14)
             }
@@ -57,7 +62,9 @@ struct UnlockView: View {
         .padding(.horizontal, 28).padding(.bottom, 40)
         .frame(maxWidth: 480).frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DB.ground).foregroundStyle(DB.text)
-        .task { if session.biometricUnlockAllowed { await biometric() } else { focused = true } }
+        // Biometrics is the default: start it on its own whenever this screen is shown or the app comes back.
+        .task { await autoUnlock() }
+        .onChange(of: phase) { _, new in if new == .active { Task { await autoUnlock() } } }
         .sheet(isPresented: $showRecovery) { RecoverView() }
     }
 
@@ -81,9 +88,26 @@ struct UnlockView: View {
         }
     }
 
+    private func autoUnlock() async {
+        guard session.state == .locked, !prompting else { return }
+        guard session.biometricUnlockAllowed else { focused = true; return } // master-password check is due
+        cancelled = false
+        try? await Task.sleep(for: .milliseconds(250)) // let the screen settle so the prompt isn't refused
+        await biometric()
+    }
+
     private func biometric() async {
-        do { try await session.unlockWithBiometrics() }
-        catch { self.error = error.friendly }
+        guard !prompting else { return }
+        prompting = true
+        defer { prompting = false }
+        error = nil
+        do {
+            let unlocked = try await session.unlockWithBiometrics()
+            if !unlocked { cancelled = true; focused = true } // cancelled: offer the password, don't nag
+        } catch {
+            self.error = error.friendly
+            focused = true
+        }
     }
 }
 
@@ -139,8 +163,13 @@ struct Shake: GeometryEffect {
 
 struct ToastOverlay: ViewModifier {
     @Environment(VaultSession.self) private var session
+    #if os(macOS)
+    static let compact = true, alignment = Alignment.bottomTrailing   // Mac v2: small, above the status bar
+    #else
+    static let compact = false, alignment = Alignment.bottom
+    #endif
     func body(content: Content) -> some View {
-        content.overlay(alignment: .bottom) {
+        content.overlay(alignment: Self.alignment) {
             if let toast = session.toast {
                 HStack(spacing: 12) {
                     Image(systemName: toast.style == .success ? "checkmark" : "exclamationmark")
@@ -148,17 +177,18 @@ struct ToastOverlay: ViewModifier {
                         .foregroundStyle(toast.style == .success ? DB.good : DB.danger)
                         .frame(width: 26, height: 26).background(DB.ground, in: Circle())
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(toast.title).font(.db(15, .semibold))
-                        if let d = toast.detail { Text(d).font(.db(13)).foregroundStyle(Color(hex: 0x4A4E57)) }
+                        Text(toast.title).font(.db(Self.compact ? 13 : 15, .semibold))
+                        if let d = toast.detail { Text(d).font(.db(Self.compact ? 12 : 13)).foregroundStyle(Color(hex: 0x4A4E57)) }
                     }
                     Spacer(minLength: 0)
                 }
                 .foregroundStyle(DB.ground)
-                .padding(.horizontal, 16).padding(.vertical, 14)
-                .background(DB.text, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .padding(.horizontal, Self.compact ? 12 : 16).padding(.vertical, Self.compact ? 9 : 14)
+                .background(DB.text, in: RoundedRectangle(cornerRadius: Self.compact ? 10 : 16, style: .continuous))
                 .shadow(color: .black.opacity(0.5), radius: 20, y: 12)
-                .padding(.horizontal, 20).padding(.bottom, 24)
-                .frame(maxWidth: 480)
+                .fixedSize(horizontal: Self.compact, vertical: false)
+                .padding(.horizontal, Self.compact ? 18 : 20).padding(.bottom, Self.compact ? 40 : 24)
+                .frame(maxWidth: Self.compact ? nil : 480)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .id(toast.id)
                 .task(id: toast.id) {

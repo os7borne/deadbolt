@@ -218,8 +218,9 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;
         </ul>
         <ul class="list">
           <li><span class="tick" aria-hidden="true">✓</span><div><b>No analytics, ads or tracking</b><span>Deadbolt doesn’t report how you use it.</span></div></li>
+          <li><span class="tick" aria-hidden="true">✓</span><div><b>Website icons without a third party</b><span>Fetched straight from each site through Deadbolt’s own server, cached for a week. Turn them off and no requests are made.</span></div></li>
           <li><span class="tick" aria-hidden="true">✓</span><div><b>Backups you control</b><span>Encrypted with your Recovery Kit and saved only where you choose.</span></div></li>
-          <li><span class="tick info" aria-hidden="true">i</span><div><b>What the relay can see</b><span>A random mailbox ID, the size and time of encrypted messages, and the IP address they came from. Never their contents.</span></div></li>
+          <li><span class="tick info" aria-hidden="true">i</span><div><b>What the relay can see</b><span>A random mailbox ID, the size and time of encrypted messages, the IP address they came from and, for an iPhone, the push token Apple uses to wake Deadbolt. Never their contents. Wake-up pushes carry nothing.</span></div></li>
         </ul>
       </div>
     </div>
@@ -229,7 +230,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;
     <div class="wrap">
       <p class="kicker">Security design</p>
       <h2>Standard, well-reviewed building blocks. Nothing home-made.</h2>
-      <p class="sub">Deadbolt uses Apple CryptoKit and libsodium rather than custom cryptography, and every file format is versioned and authenticated. This is the design being built: encryption, Face ID unlock, passkeys and the Recovery Kit work today; device sync, device keys and remote removal are in progress.</p>
+      <p class="sub">Deadbolt uses Apple CryptoKit and libsodium rather than custom cryptography, and every file format is versioned and authenticated. Encryption, Face ID unlock, passkeys, the Recovery Kit, device sync with signed device keys, and device removal with key rotation are built and being tested on the author’s own devices.</p>
       <div class="spec-box" style="margin-top:32px">
         <table class="spec">
           <tbody>
@@ -264,7 +265,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;
         <div class="card platform">
           <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg></div>
           <div><h3 style="margin:0">Chrome on Mac</h3><p>Extension that unlocks through the Mac app</p></div>
-          <span class="pill planned">Planned</span>
+          <span class="pill building">In development</span>
         </div>
       </div>
     </div>

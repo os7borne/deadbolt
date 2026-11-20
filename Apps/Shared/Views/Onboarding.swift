@@ -9,8 +9,11 @@ struct OnboardingView: View {
     @State private var confirm = ""
     @State private var recovery: RecoveryKey?
     @State private var error: String?
+    @State private var restoring = false
+    @State private var joining = false
+    @State private var removedNotice = Prefs.removedNotice
 
-    enum Step: Int { case welcome = 0, password, words, biometrics }
+    enum Step: Int { case welcome = 0, password, words, biometrics, system }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -20,6 +23,7 @@ struct OnboardingView: View {
             case .password: passwordStep
             case .words: wordsStep
             case .biometrics: biometricsStep
+            case .system: systemStep
             }
         }
         .padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 32)
@@ -29,19 +33,22 @@ struct OnboardingView: View {
         .foregroundStyle(DB.text)
         .animation(.snappy, value: step)
         // Resuming an interrupted setup (vault exists and is unlocked): go straight to the words.
-        .task { if session.state == .unlocked && step.rawValue < Step.words.rawValue { step = .words } }
+        .task {
+            guard session.state == .unlocked, step.rawValue < Step.words.rawValue else { return }
+            step = Prefs.joinedByLink ? .biometrics : .words // a linked device already has its Recovery Kit elsewhere
+        }
     }
 
     private var progress: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
-                ForEach(1...3, id: \.self) { i in
+                ForEach(1...4, id: \.self) { i in
                     Capsule().fill(i <= step.rawValue ? DB.brass : DB.lineStrong).frame(height: 4)
                 }
             }
-            Text("Step \(step.rawValue) of 3").font(.db(13)).foregroundStyle(DB.text3)
+            Text("Step \(step.rawValue) of 4").font(.db(13)).foregroundStyle(DB.text3)
         }
-        .accessibilityElement(children: .ignore).accessibilityLabel("Step \(step.rawValue) of 3")
+        .accessibilityElement(children: .ignore).accessibilityLabel("Step \(step.rawValue) of 4")
     }
 
     // MARK: steps
@@ -54,9 +61,24 @@ struct OnboardingView: View {
             Text("Your passwords and passkeys, encrypted on your own devices. No account. No server copy.")
                 .font(.db(16)).foregroundStyle(DB.text2).multilineTextAlignment(.center).frame(maxWidth: 300)
             Spacer()
+            if let removedNotice {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "info.circle.fill").foregroundStyle(DB.brass)
+                    Text(removedNotice).font(.db(13)).foregroundStyle(DB.text2)
+                    Spacer(minLength: 0)
+                    Button { Prefs.removedNotice = nil; self.removedNotice = nil } label: { Image(systemName: "xmark") }
+                        .buttonStyle(.plain).foregroundStyle(DB.text3).accessibilityLabel("Dismiss")
+                }
+                .padding(14).background(DB.brassWash, in: RoundedRectangle(cornerRadius: 14))
+            }
             Button("Create my vault") { step = .password }.buttonStyle(PrimaryButtonStyle())
+            Button("I already use Deadbolt") { joining = true }.buttonStyle(SecondaryButtonStyle())
+            Button("Restore from a backup") { restoring = true }
+                .buttonStyle(.plain).font(.db(15)).foregroundStyle(DB.text2).frame(minHeight: 44)
         }
         .frame(maxWidth: .infinity)
+        .sheet(isPresented: $restoring) { RestoreView(onRestored: { step = .biometrics }) }
+        .sheet(isPresented: $joining) { JoinView() }
     }
 
     private var passwordStep: some View {
@@ -111,17 +133,83 @@ struct OnboardingView: View {
             Text("Faster than typing your master password. Deadbolt will still ask for the password every 14 days.")
                 .font(.db(15)).foregroundStyle(DB.text2).multilineTextAlignment(.center).frame(maxWidth: 300)
             Spacer()
+            if !KeychainKey.biometryAvailable {
+                Text("\(KeychainKey.biometryName) isn’t set up on this device. You can turn it on later in Settings.")
+                    .font(.db(13)).foregroundStyle(DB.text3).multilineTextAlignment(.center)
+            }
             Button("Use \(KeychainKey.biometryName)") {
-                do { try session.setBiometrics(true); session.show("\(KeychainKey.biometryName) is on") }
-                catch { session.show("Couldn’t turn on \(KeychainKey.biometryName)", error.friendly, style: .error) }
-                finish()
+                Task {
+                    // A real check: this is when the system asks for permission to use Face ID.
+                    guard await KeychainKey.confirmOwner(reason: "Turn on \(KeychainKey.biometryName) for Deadbolt") else {
+                        session.show("\(KeychainKey.biometryName) wasn’t turned on", "You can do it later in Settings", style: .error)
+                        return
+                    }
+                    do { try session.setBiometrics(true); session.show("\(KeychainKey.biometryName) is on") }
+                    catch { session.show("Couldn’t turn on \(KeychainKey.biometryName)", error.friendly, style: .error) }
+                    step = .system
+                }
             }
             .buttonStyle(PrimaryButtonStyle())
             .disabled(!KeychainKey.biometryAvailable)
+            Button("Not now") { step = .system }.buttonStyle(SecondaryButtonStyle())
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    #if os(iOS)
+    @State private var autofillOn = false
+
+    private var systemStep: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "key.viewfinder").font(.system(size: 54, weight: .light)).foregroundStyle(DB.brass)
+            Text("Turn on AutoFill").font(.db(26, .bold))
+            Text("So Deadbolt can fill passwords and passkeys in Safari and apps, and offer to save new ones.")
+                .font(.db(15)).foregroundStyle(DB.text2).multilineTextAlignment(.center).frame(maxWidth: 300)
+            if autofillOn {
+                Label("AutoFill is on", systemImage: "checkmark.circle.fill").font(.db(15, .semibold)).foregroundStyle(DB.good)
+            }
+            Spacer()
+            if autofillOn {
+                Button("Finish") { finish() }.buttonStyle(PrimaryButtonStyle())
+            } else {
+                Button("Turn on AutoFill") {
+                    Task {
+                        autofillOn = await SystemSetup.requestAutofill()
+                        if autofillOn { session.show("AutoFill is on") }
+                        else { session.show("AutoFill is still off", "Use Open Settings, or turn it on later", style: .error) }
+                    }
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                Button("Open Settings") { SystemSetup.openAutofillSettings() }.buttonStyle(SecondaryButtonStyle())
+                Button("Later") { finish() }.buttonStyle(.plain).font(.db(15)).foregroundStyle(DB.text2).frame(minHeight: 44)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .task { autofillOn = await SystemSetup.autofillEnabled() }
+    }
+    #else
+    @State private var atLogin = SystemSetup.opensAtLogin
+
+    private var systemStep: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "menubar.rectangle").font(.system(size: 54, weight: .light)).foregroundStyle(DB.brass)
+            Text("Open Deadbolt at login?").font(.db(26, .bold))
+            Text("Deadbolt lives in the menu bar. Starting it at login keeps your vault one click away.")
+                .font(.db(15)).foregroundStyle(DB.text2).multilineTextAlignment(.center).frame(maxWidth: 320)
+            Spacer()
+            Button("Open at login") {
+                do { try SystemSetup.setOpensAtLogin(true); session.show("Deadbolt will open at login") }
+                catch { session.show("Couldn’t turn that on", error.friendly, style: .error) }
+                finish()
+            }
+            .buttonStyle(PrimaryButtonStyle())
             Button("Not now") { finish() }.buttonStyle(SecondaryButtonStyle())
         }
         .frame(maxWidth: .infinity)
     }
+    #endif
 
     // MARK: logic
 
@@ -145,7 +233,10 @@ struct OnboardingView: View {
         }
     }
 
-    private func finish() { session.onboardingFinished = true }
+    private func finish() {
+        Prefs.joinedByLink = false
+        session.onboardingFinished = true
+    }
 }
 
 struct RecoveryWordsGrid: View {

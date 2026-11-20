@@ -13,12 +13,12 @@ progress:
   - "[x] VaultFile v1: whole vault sealed under VK; VK wrapped by master password + recovery key; atomic write, complete file protection, excluded from backups + tests"
   - "[ ] Per-record sealing / op log (needed for sync, phase 4) + snapshots"
   - "[ ] Keychain: biometric-wrapped VK (biometryCurrentSet, no passcode fallback) + test proving it's really in the Keychain"
-  - "[ ] Password generator (random + passphrase)"
-  - "[ ] TOTP (RFC 6238 vectors) + otpauth:// parsing"
-  - "[ ] Importers: Apple Passwords, Chrome, 1Password CSV"
-  - "[ ] Encrypted backup file (recovery-key encrypted) + scheduled writes to chosen folder"
-  - "[ ] Recovery Kit PDF"
-  - "[ ] project.yml + macOS menu-bar app shell (unlock, list, edit)"
+  - "[x] Password generator (random + passphrase)"
+  - "[x] TOTP (RFC 6238 vectors, SHA1/256/512) + otpauth:// parsing + base32; codes in detail/list/Mac menu; iOS AutoFill one-time codes"
+  - "[x] Importers by header: Apple Passwords, Chrome, 1Password, Bitwarden, generic CSV; preview (new/updated/unchanged/skipped); never duplicates; offers to delete the export"
+  - "[x] Encrypted backup file (recovery-key encrypted), weekly + after import, to a chosen folder (security-scoped bookmark), keeps newest 10; restore on first run keeps the same Recovery Kit"
+  - "[x] Recovery Kit PDF (print/share on iOS, open in Preview on Mac; temp file deleted on leave)"
+  - "[x] project.yml + iOS app + AutoFill extension + macOS menu-bar app"
 ---
 
 # Phase 1 — Core + Mac app

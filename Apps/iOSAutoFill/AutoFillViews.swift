@@ -12,6 +12,8 @@ final class AutoFillModel {
         case idle
         case list(hosts: [String], passkey: PasskeyQuery?)
         case provideLogin(UUID)
+        case provideCode(UUID)
+        case codes(hosts: [String])
         case providePasskey(credentialID: Data, clientDataHash: Data)
         case register(Registration)
         case save(SaveRequest)
@@ -20,6 +22,87 @@ final class AutoFillModel {
 
     var mode: Mode = .idle
     weak var controller: CredentialProviderViewController?
+}
+
+/// Sizes for the AutoFill screens: iPhone-sized by default, the Mac app's compact scale (13 pt text, 44 px rows) on the Mac.
+private enum AF {
+    #if os(macOS)
+    static let mac = true
+    static let headerFont: CGFloat = 13, h1: CGFloat = 17, rowTitle: CGFloat = 13, rowDetail: CGFloat = 12, body: CGFloat = 12.5, small: CGFloat = 11.5
+    static let rowHeight: CGFloat = 44, tile: CGFloat = 28, pad: CGFloat = 16, headerHeight: CGFloat = 44
+    #else
+    static let mac = false
+    static let headerFont: CGFloat = 17, h1: CGFloat = 22, rowTitle: CGFloat = 16, rowDetail: CGFloat = 13, body: CGFloat = 15, small: CGFloat = 13
+    static let rowHeight: CGFloat = 68, tile: CGFloat = 42, pad: CGFloat = 20, headerHeight: CGFloat = 52
+    #endif
+}
+
+private extension View {
+    func afPrimary() -> some View {
+        #if os(macOS)
+        self.buttonStyle(MacButtonStyle(prominent: true))
+        #else
+        self.buttonStyle(PrimaryButtonStyle())
+        #endif
+    }
+    func afSecondary() -> some View {
+        #if os(macOS)
+        self.buttonStyle(MacButtonStyle())
+        #else
+        self.buttonStyle(SecondaryButtonStyle(height: 46))
+        #endif
+    }
+    func afField() -> some View {
+        #if os(macOS)
+        self.macField()
+        #else
+        self.fieldStyle()
+        #endif
+    }
+}
+
+private struct AFCard<C: View>: View {
+    @ViewBuilder let content: () -> C
+    var body: some View {
+        #if os(macOS)
+        VStack(spacing: 0) { content() }
+            .background(DB.surface, in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(DB.line))
+        #else
+        Card { content() }
+        #endif
+    }
+}
+
+private struct AFLabel: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+    var body: some View {
+        #if os(macOS)
+        Text(text.uppercased()).font(.db(11, .semibold)).tracking(0.6).foregroundStyle(DB.text3)
+        #else
+        SectionLabel(text)
+        #endif
+    }
+}
+
+private struct AFHeader: View {
+    let title: String
+    let cancel: () -> Void
+    var body: some View {
+        HStack {
+            #if os(macOS)
+            Button("Cancel", action: cancel).buttonStyle(MacButtonStyle()).keyboardShortcut(.cancelAction)
+            #else
+            Button("Cancel", action: cancel).foregroundStyle(DB.brass)
+            #endif
+            Spacer()
+            Text(title).font(.db(AF.headerFont, .semibold))
+            Spacer()
+            Color.clear.frame(width: AF.mac ? 60 : 52)
+        }
+        .padding(.horizontal, 16).frame(height: AF.headerHeight)
+    }
 }
 
 struct AutoFillRoot: View {
@@ -50,6 +133,8 @@ struct AutoFillRoot: View {
         case .idle, .configure: Color.clear
         case .list(let hosts, let passkey): ChooseLoginView(model: model, hosts: hosts, passkey: passkey)
         case .provideLogin(let id): AutoComplete { provide(id) }
+        case .provideCode(let id): AutoComplete { provideCode(id) }
+        case .codes(let hosts): ChooseCodeView(model: model, hosts: hosts)
         case .providePasskey(let cid, let hash): AutoComplete { signIn(cid, hash) }
         case .register(let r): CreatePasskeyView(model: model, request: r)
         case .save(let s): SaveSheet(model: model, request: s)
@@ -61,6 +146,13 @@ struct AutoFillRoot: View {
         guard let login = session.vault.login(id) else { return model.controller?.cancel(.credentialIdentityNotFound) ?? () }
         try? session.mutate { $0.markUsed(id) }
         model.controller?.complete(login: login)
+    }
+
+    private func provideCode(_ id: UUID) {
+        guard let secret = session.vault.login(id)?.totpSecret, let t = try? TOTP(secret) else {
+            return model.controller?.cancel(.credentialIdentityNotFound) ?? ()
+        }
+        model.controller?.complete(code: t.code())
     }
 
     private func signIn(_ credentialID: Data, _ hash: Data) {
@@ -82,40 +174,58 @@ private struct ExtensionUnlock: View {
     let cancel: () -> Void
     @State private var password = ""
     @State private var error: String?
+    @State private var prompting = false
     @FocusState private var focused: Bool
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: AF.mac ? 12 : 16) {
             HStack {
+                #if os(macOS)
+                Button("Cancel", action: cancel).buttonStyle(MacButtonStyle()).keyboardShortcut(.cancelAction)
+                #else
                 Button("Cancel", action: cancel).foregroundStyle(DB.brass)
+                #endif
                 Spacer()
             }
-            DeadboltMark(size: 64).padding(.top, 20)
-            Text("Unlock Deadbolt").font(.db(22, .bold))
+            Spacer(minLength: 0)
+            DeadboltMark(size: AF.mac ? 44 : 64).padding(.top, AF.mac ? 0 : 20)
+            Text("Unlock Deadbolt").font(.db(AF.h1, .bold))
             if session.biometricUnlockAllowed {
                 Button { Task { await biometric() } } label: {
-                    Label("Unlock with \(KeychainKey.biometryName)", systemImage: "faceid")
+                    Label("Unlock with \(KeychainKey.biometryName)", systemImage: KeychainKey.biometryName == "Touch ID" ? "touchid" : "faceid")
                 }
-                .buttonStyle(PrimaryButtonStyle())
+                .afPrimary()
             }
             HStack(spacing: 8) {
                 SecureField("Master password", text: $password).textContentType(.password).focused($focused)
-                    .onSubmit { Task { await unlock() } }.fieldStyle()
+                    .onSubmit { Task { await unlock() } }.afField()
                 Button { Task { await unlock() } } label: {
-                    Group { if session.busy { ProgressView() } else { Image(systemName: "arrow.right") } }
-                        .frame(width: 52, height: 52).background(DB.control, in: RoundedRectangle(cornerRadius: 16))
+                    Group { if session.busy { ProgressView().controlSize(.small) } else { Image(systemName: "arrow.right") } }
+                        .frame(width: AF.mac ? 28 : 52, height: AF.mac ? 28 : 52)
+                        .background(DB.control, in: RoundedRectangle(cornerRadius: AF.mac ? 6 : 16))
                 }
                 .buttonStyle(.plain).accessibilityLabel("Unlock").disabled(password.isEmpty || session.busy)
             }
-            if let error { Text(error).font(.db(14)).foregroundStyle(DB.danger) }
+            .frame(maxWidth: AF.mac ? 300 : .infinity)
+            if let error { Text(error).font(.db(AF.mac ? 12 : 14)).foregroundStyle(DB.danger) }
             Spacer()
         }
-        .padding(20)
-        .task { if session.biometricUnlockAllowed { await biometric() } else { focused = true } }
+        .padding(AF.mac ? 16 : 20)
+        .task {
+            guard session.biometricUnlockAllowed else { focused = true; return }
+            try? await Task.sleep(for: .milliseconds(450)) // let the AutoFill sheet finish presenting
+            await biometric()
+        }
     }
 
     private func biometric() async {
-        do { try await session.unlockWithBiometrics(reason: "Fill from Deadbolt") } catch { self.error = error.friendly }
+        guard !prompting else { return }
+        prompting = true
+        defer { prompting = false }
+        error = nil
+        do {
+            if try await !session.unlockWithBiometrics(reason: "Fill from Deadbolt") { focused = true }
+        } catch { self.error = error.friendly; focused = true }
     }
 
     private func unlock() async {
@@ -131,38 +241,39 @@ private struct ChooseLoginView: View {
     let hosts: [String]
     let passkey: AutoFillModel.PasskeyQuery?
     @State private var query = ""
+    @State private var mismatch: LoginItem?
 
     var body: some View {
         let site = hosts.first ?? passkey?.rpID ?? ""
         VStack(spacing: 0) {
-            HStack {
-                Button("Cancel") { model.controller?.cancel(.userCanceled) }.foregroundStyle(DB.brass)
-                Spacer()
-                Text("Deadbolt").font(.db(17, .semibold))
-                Spacer()
-                Color.clear.frame(width: 52)
-            }
-            .padding(.horizontal, 16).frame(height: 52)
+            AFHeader(title: "Deadbolt") { model.controller?.cancel(.userCanceled) }
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    TextField("Search all logins", text: $query).fieldStyle()
+                VStack(alignment: .leading, spacing: AF.mac ? 8 : 10) {
+                    TextField("Search all logins", text: $query).afField()
                     if query.isEmpty {
-                        SectionLabel(site.isEmpty ? "Suggestions" : "For \(site)").padding(.top, 12)
+                        AFLabel(site.isEmpty ? "Suggestions" : "For \(site)").padding(.top, AF.mac ? 6 : 12)
                         if suggestedPasskeys.isEmpty && suggestedLogins.isEmpty {
-                            Text("Nothing saved for \(site) yet.").font(.db(15)).foregroundStyle(DB.text2).padding(.vertical, 8)
+                            Text("Nothing saved for \(site) yet.").font(.db(AF.body)).foregroundStyle(DB.text2).padding(.vertical, 8)
                         } else {
-                            Card { rows(passkeys: suggestedPasskeys, logins: suggestedLogins) }
+                            AFCard { rows(passkeys: suggestedPasskeys, logins: suggestedLogins) }
                         }
                     } else {
-                        SectionLabel("All logins").padding(.top, 12)
-                        Card { rows(passkeys: [], logins: searchResults) }
+                        AFLabel("All logins").padding(.top, AF.mac ? 6 : 12)
+                        AFCard { rows(passkeys: [], logins: searchResults) }
                     }
-                    Text("Face ID confirmed before anything is filled. Only logins saved for this site are suggested.")
-                        .font(.db(13)).foregroundStyle(DB.text3).padding(.top, 14)
+                    Text("\(KeychainKey.biometryName) is confirmed before anything is filled. Only logins saved for this site are suggested.")
+                        .font(.db(AF.small)).foregroundStyle(DB.text3).padding(.top, AF.mac ? 8 : 14)
                 }
-                .padding(20)
+                .padding(AF.pad)
             }
+        }
+        .alert("Fill a login for another site?", isPresented: Binding(get: { mismatch != nil }, set: { if !$0 { mismatch = nil } }),
+               presenting: mismatch) { l in
+            Button("Fill anyway", role: .destructive) { fill(l) }
+            Button("Cancel", role: .cancel) {}
+        } message: { l in
+            Text("This login is saved for \(l.sites.first ?? "another site"), but you’re signing in to \(hosts.first ?? "a different site"). Fake sites often look like the real one — only continue if you’re sure.")
         }
     }
 
@@ -194,33 +305,91 @@ private struct ChooseLoginView: View {
             if i > 0 || !passkeys.isEmpty { CardDivider() }
             row(title: l.username, detail: l.label.map { "\($0) · \(l.sites.first ?? "")" } ?? "Password · \(l.sites.first ?? "")",
                 passkey: false, best: passkeys.isEmpty && i == 0 && l.preferred) {
-                try? session.mutate { $0.markUsed(l.id) }
-                model.controller?.complete(login: l)
+                // Filling a login saved for another site is how phishing works: ask first, naming both sites.
+                if !hosts.isEmpty, !hosts.contains(where: { h in l.sites.contains { Site.host(h, isCoveredBy: $0) } }) {
+                    mismatch = l
+                    return
+                }
+                fill(l)
             }
         }
     }
 
+    private func fill(_ l: LoginItem) {
+        try? session.mutate { $0.markUsed(l.id) }
+        model.controller?.complete(login: l)
+    }
+
     private func row(title: String, detail: String, passkey: Bool, best: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 14) {
+            HStack(spacing: AF.mac ? 10 : 14) {
                 if passkey {
-                    Image(systemName: "key.horizontal.fill").foregroundStyle(DB.brass)
-                        .frame(width: 42, height: 42).background(DB.brassWash, in: RoundedRectangle(cornerRadius: 12))
+                    Image(systemName: "person.badge.key").font(.system(size: AF.mac ? 12 : 16)).foregroundStyle(DB.brass)
+                        .frame(width: AF.tile, height: AF.tile).background(DB.brassWash, in: RoundedRectangle(cornerRadius: AF.mac ? 8 : 12))
                 } else {
-                    SiteTile(title: title)
+                    SiteTile(title: title, size: AF.tile)
                 }
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.db(16, .semibold))
-                    Text(detail).font(.db(13)).foregroundStyle(DB.text2).lineLimit(1)
+                VStack(alignment: .leading, spacing: AF.mac ? 1 : 3) {
+                    Text(title).font(.db(AF.rowTitle, .semibold)).lineLimit(1).truncationMode(.middle)
+                    Text(detail).font(.db(AF.rowDetail)).foregroundStyle(DB.text2).lineLimit(1)
                 }
                 Spacer()
                 if best {
-                    Text("Best").font(.db(12, .bold)).foregroundStyle(DB.onBrass).padding(.horizontal, 10).frame(height: 26).background(DB.brass, in: Capsule())
+                    Text("Best").font(.db(AF.mac ? 11 : 12, .bold)).foregroundStyle(DB.onBrass)
+                        .padding(.horizontal, AF.mac ? 8 : 10).frame(height: AF.mac ? 20 : 26).background(DB.brass, in: Capsule())
                 }
             }
-            .padding(.horizontal, 16).frame(minHeight: 68).contentShape(Rectangle())
+            .padding(.horizontal, AF.mac ? 10 : 16).frame(minHeight: AF.rowHeight).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: choose a one-time code
+
+private struct ChooseCodeView: View {
+    @Environment(VaultSession.self) private var session
+    let model: AutoFillModel
+    let hosts: [String]
+
+    var body: some View {
+        let withCodes = session.vault.logins.filter { $0.totpSecret != nil }
+        var seen = Set<UUID>()
+        let matching = hosts.flatMap { session.vault.accounts(for: $0) }.filter { $0.totpSecret != nil && seen.insert($0.id).inserted }
+        let list = matching.isEmpty ? withCodes : matching
+        return VStack(spacing: 0) {
+            AFHeader(title: "One-time codes") { model.controller?.cancel(.userCanceled) }
+            ScrollView {
+                VStack(alignment: .leading, spacing: AF.mac ? 8 : 10) {
+                    AFLabel(matching.isEmpty ? "All codes" : "For \(hosts.first ?? "")")
+                    if list.isEmpty {
+                        Text("No one-time codes saved yet. Add a setup key to a login in the Deadbolt app.").font(.db(AF.body)).foregroundStyle(DB.text2)
+                    } else {
+                        AFCard {
+                            ForEach(Array(list.enumerated()), id: \.element.id) { i, l in
+                                if i > 0 { CardDivider() }
+                                Button {
+                                    if let s = l.totpSecret, let t = try? TOTP(s) { model.controller?.complete(code: t.code()) }
+                                } label: {
+                                    HStack(spacing: AF.mac ? 10 : 14) {
+                                        SiteTile(title: l.title, site: l.sites.first, size: AF.tile)
+                                        VStack(alignment: .leading, spacing: AF.mac ? 1 : 3) {
+                                            Text(l.title).font(.db(AF.rowTitle, .semibold)).lineLimit(1)
+                                            Text(l.username).font(.db(AF.rowDetail)).foregroundStyle(DB.text2).lineLimit(1).truncationMode(.middle)
+                                        }
+                                        Spacer()
+                                        if let s = l.totpSecret { InlineCode(secret: s) }
+                                    }
+                                    .padding(.horizontal, AF.mac ? 10 : 16).frame(minHeight: AF.mac ? 44 : 64).contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+                .padding(AF.pad)
+            }
+        }
     }
 }
 
@@ -233,28 +402,40 @@ private struct CreatePasskeyView: View {
     @State private var working = false
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: AF.mac ? 12 : 16) {
             Spacer()
-            Image(systemName: "key.horizontal.fill").font(.system(size: 34)).foregroundStyle(DB.brass)
-                .frame(width: 76, height: 76).background(DB.brassWash, in: RoundedRectangle(cornerRadius: 24))
-            Text("Create a passkey for \(request.rpID)?").font(.db(22, .bold)).multilineTextAlignment(.center)
+            Image(systemName: "person.badge.key").font(.system(size: AF.mac ? 22 : 34)).foregroundStyle(DB.brass)
+                .frame(width: AF.mac ? 48 : 76, height: AF.mac ? 48 : 76).background(DB.brassWash, in: RoundedRectangle(cornerRadius: AF.mac ? 14 : 24))
+            Text("Create a passkey for \(request.rpID)?").font(.db(AF.h1, .bold)).multilineTextAlignment(.center)
             Text("Sign in with \(KeychainKey.biometryName) instead of a password. Saved in Deadbolt.")
-                .font(.db(15)).foregroundStyle(DB.text2).multilineTextAlignment(.center).frame(maxWidth: 300)
-            HStack(spacing: 12) {
-                SiteTile(title: request.userName, size: 34)
+                .font(.db(AF.body)).foregroundStyle(DB.text2).multilineTextAlignment(.center).frame(maxWidth: 300)
+            HStack(spacing: AF.mac ? 10 : 12) {
+                SiteTile(title: request.userName, size: AF.mac ? 28 : 34)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(request.userName).font(.db(15))
-                    Text("Account on \(request.rpID)").font(.db(13)).foregroundStyle(DB.text3)
+                    Text(request.userName).font(.db(AF.mac ? 13 : 15)).lineLimit(1).truncationMode(.middle)
+                    Text("Account on \(request.rpID)").font(.db(AF.rowDetail)).foregroundStyle(DB.text3)
                 }
                 Spacer()
             }
-            .padding(14).background(DB.surface, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).stroke(DB.line))
+            .padding(AF.mac ? 10 : 14).background(DB.surface, in: RoundedRectangle(cornerRadius: AF.mac ? 8 : 16))
+            .overlay(RoundedRectangle(cornerRadius: AF.mac ? 8 : 16).stroke(DB.line))
             Spacer()
-            Button { create() } label: { if working { ProgressView().tint(DB.onBrass) } else { Text("Create passkey") } }
-                .buttonStyle(PrimaryButtonStyle()).disabled(working)
-            Button("Cancel") { model.controller?.cancel(.userCanceled) }.buttonStyle(SecondaryButtonStyle(height: 46))
+            HStack(spacing: 8) {
+                #if os(macOS)
+                Button("Cancel") { model.controller?.cancel(.userCanceled) }.afSecondary().keyboardShortcut(.cancelAction)
+                Spacer()
+                #endif
+                Button { create() } label: { if working { ProgressView().controlSize(.small).tint(DB.onBrass) } else { Text("Create Passkey") } }
+                    .afPrimary().disabled(working)
+                #if os(macOS)
+                    .keyboardShortcut(.defaultAction)
+                #endif
+            }
+            #if os(iOS)
+            Button("Cancel") { model.controller?.cancel(.userCanceled) }.afSecondary()
+            #endif
         }
-        .padding(20)
+        .padding(AF.pad)
     }
 
     private func create() {
@@ -306,7 +487,7 @@ private struct SaveSheet: View {
             } else {
                 Spacer()
                 HStack(spacing: 14) {
-                    SiteTile(title: request.host, size: 48)
+                    SiteTile(title: request.host, site: request.host, size: 48)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(isUpdate(proposal) ? "Update saved password?" : "Save to Deadbolt?").font(.db(20, .bold))
                         Text("\(request.username) · \(request.host)").font(.db(14)).foregroundStyle(DB.text2)
@@ -357,30 +538,30 @@ private struct SaveSheet: View {
 private struct ConfigureView: View {
     let done: () -> Void
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: AF.mac ? 12 : 16) {
             Spacer()
-            DeadboltMark(size: 56)
-            Text("Deadbolt is ready").font(.db(24, .bold))
+            DeadboltMark(size: AF.mac ? 44 : 56)
+            Text("Deadbolt is ready").font(.db(AF.mac ? 17 : 24, .bold))
             Text("It will offer your passwords and passkeys when you sign in, and offer to save new ones.")
-                .font(.db(15)).foregroundStyle(DB.text2).multilineTextAlignment(.center).frame(maxWidth: 300)
+                .font(.db(AF.body)).foregroundStyle(DB.text2).multilineTextAlignment(.center).frame(maxWidth: 300)
             Spacer()
-            Button("Done", action: done).buttonStyle(PrimaryButtonStyle())
+            Button("Done", action: done).afPrimary()
         }
-        .padding(20)
+        .padding(AF.pad)
     }
 }
 
 private struct NoVaultView: View {
     let cancel: () -> Void
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: AF.mac ? 12 : 16) {
             Spacer()
-            DeadboltMark(size: 56)
-            Text("Set up Deadbolt first").font(.db(22, .bold))
-            Text("Open the Deadbolt app to create your vault.").font(.db(15)).foregroundStyle(DB.text2)
+            DeadboltMark(size: AF.mac ? 44 : 56)
+            Text("Set up Deadbolt first").font(.db(AF.h1, .bold))
+            Text("Open the Deadbolt app to create your vault.").font(.db(AF.body)).foregroundStyle(DB.text2)
             Spacer()
-            Button("Close", action: cancel).buttonStyle(SecondaryButtonStyle())
+            Button("Close", action: cancel).afSecondary()
         }
-        .padding(20)
+        .padding(AF.pad)
     }
 }

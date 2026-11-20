@@ -12,11 +12,15 @@ public struct LoginItem: Codable, Equatable, Identifiable, Sendable {
     public var totpSecret: String?        // otpauth secret (base32), if any
     public var passkeyIDs: [Data]         // credential IDs of passkeys stored for this account
     public var notes: String?
+    /// Extra name/value pairs: security answers, account IDs, PINs. nil on logins made before custom fields existed.
+    public var customFields: [CustomField]?
     public var preferred: Bool            // suggested first among accounts on the same site
     public var history: [PasswordHistoryEntry]
     public var createdAt: Date
     public var updatedAt: Date
     public var lastUsedAt: Date?
+    /// When each field last changed, for merging edits from other devices. nil on vaults made before sync.
+    public var clocks: [String: HLC]? = nil
 
     public static let historyLimit = 20
 
@@ -55,7 +59,21 @@ public struct LoginItem: Codable, Equatable, Identifiable, Sendable {
         changePassword(to: entry.password, now: now)
     }
 
+    /// A one-time code on its own: no password, no passkey. Shown in code lists, never offered to fill a sign-in.
+    public var isCodeOnly: Bool { password.isEmpty && passkeyIDs.isEmpty && totpSecret != nil }
+
     func matches(host: String) -> Bool { sites.contains { Site.host(host, isCoveredBy: $0) } }
+}
+
+/// A custom field on a login. "Hidden" values (PINs, security answers) are masked until revealed.
+public struct CustomField: Codable, Equatable, Identifiable, Sendable {
+    public var id: UUID
+    public var name: String
+    public var value: String
+    public var hidden: Bool
+    public init(id: UUID = UUID(), name: String = "", value: String = "", hidden: Bool = false) {
+        self.id = id; self.name = name; self.value = value; self.hidden = hidden
+    }
 }
 
 public struct PasswordHistoryEntry: Codable, Equatable, Sendable {
@@ -70,7 +88,12 @@ public enum Site {
     public static func normalize(_ input: String) -> String? {
         var s = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !s.isEmpty else { return nil }
-        if !s.contains("://") { s = "https://" + s }
+        if let schemeEnd = s.range(of: "://") {
+            // Only web addresses are sites. "android://com.app" or "ftp://…" must not become "com.app".
+            guard ["http", "https"].contains(String(s[..<schemeEnd.lowerBound])) else { return nil }
+        } else {
+            s = "https://" + s
+        }
         guard var host = URLComponents(string: s)?.host, !host.isEmpty else { return nil }
         if host.hasSuffix(".") { host.removeLast() }
         if host.hasPrefix("www.") { host.removeFirst(4) }

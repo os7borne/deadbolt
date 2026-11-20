@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Passkeys — Deadbolt lab</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="stylesheet" href="/lab/lab.css">
+<script src="/lab/lab.js"></script>
+</head>
+<body><div class="wrap">
+<header class="lab"><img src="/logo.png" alt=""><strong>Deadbolt lab</strong><span style="flex:1"></span><a href="./">← All tests</a></header>
+
+<h1>10 · Passkeys</h1>
+<div class="expect"><b>Expected:</b> <i>Register</i> asks for Touch ID / Face ID through Deadbolt and every check below turns ✓.
+<i>Sign in</i> does the same and verifies the signature with the public key saved at registration. With two or more accounts,
+<i>Sign in (any account)</i> should show Deadbolt's account chooser. These checks are what a real website's server does.</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Register</h2>
+  <label for="name">Account name</label><input id="name" value="lab-user@example.com" autocomplete="off">
+  <label style="display:flex;gap:8px;align-items:center;color:var(--text2)"><input type="checkbox" id="exclude" style="width:auto;height:auto">
+    Tell the authenticator about passkeys already saved here (should refuse a duplicate)</label>
+  <div class="row"><button type="button" onclick="register()">Register a passkey</button></div>
+  <div id="reg" class="result"></div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Sign in</h2>
+  <div class="row" style="margin-top:0">
+    <button type="button" onclick="signIn(true)">Sign in (any account)</button>
+    <button type="button" class="secondary" onclick="signIn(false)">Sign in (only passkeys saved here)</button>
+  </div>
+  <div id="auth" class="result"></div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Passkeys this page knows about</h2>
+  <table id="list"></table>
+  <div class="row"><button type="button" class="secondary" onclick="localStorage.removeItem('lab-passkeys'); list()">Forget them (in this page only)</button></div>
+</div>
+
+<script>
+const RP = location.hostname;
+const saved = () => JSON.parse(localStorage.getItem("lab-passkeys") || "[]");
+const save = (a) => localStorage.setItem("lab-passkeys", JSON.stringify(a));
+
+function list() {
+  const a = saved();
+  document.getElementById("list").innerHTML = a.length
+    ? "<tr><th>Account</th><th>Credential id</th><th>Created</th></tr>" + a.map((p) => `<tr><td>${p.name}</td><td class="mono">${p.id.slice(0, 16)}…</td><td>${new Date(p.at).toLocaleString()}</td></tr>`).join("")
+    : '<tr><td class="muted">None yet.</td></tr>';
+}
+list();
+
+/** authenticatorData: rpIdHash(32) flags(1) signCount(4) … */
+async function authDataChecks(ad, needAT) {
+  const flags = ad[32];
+  return [
+    [Lab.equal(ad.slice(0, 32), await Lab.sha256(new TextEncoder().encode(RP))), "Bound to this site (rpIdHash = SHA-256 of " + RP + ")"],
+    [!!(flags & 0x01), "User present (UP)"],
+    [!!(flags & 0x04), "User verified — Touch ID / Face ID (UV)"],
+    [needAT ? !!(flags & 0x40) : null, needAT ? "Contains the new credential (AT)" : "No credential data on sign-in (expected)"],
+    [null, `Backed up / synced: BE=${!!(flags & 0x08)} BS=${!!(flags & 0x10)}`, "Deadbolt passkeys sync between your devices, so both should be true"],
+  ];
+}
+
+function clientChecks(cd, type, challenge) {
+  return [
+    [cd.type === type, `clientData.type is ${type}`, cd.type],
+    [cd.challenge === Lab.b64url(challenge), "Challenge matches the one this page sent"],
+    [cd.origin === location.origin, "Origin is this page", cd.origin],
+    [cd.crossOrigin !== true, "Not cross-origin"],
+  ];
+}
+
+async function register() {
+  const out = document.getElementById("reg");
+  const challenge = Lab.random(32), userId = Lab.random(16), name = document.getElementById("name").value.trim() || "lab-user";
+  const exclude = document.getElementById("exclude").checked ? saved().map((p) => ({ type: "public-key", id: Lab.unb64url(p.id) })) : [];
+  out.innerHTML = '<p class="muted">Waiting for the authenticator…</p>';
+  try {
+    const cred = await navigator.credentials.create({ publicKey: {
+      challenge, rp: { id: RP, name: "Deadbolt lab" }, user: { id: userId, name, displayName: name },
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+      authenticatorSelection: { residentKey: "required", userVerification: "required" },
+      excludeCredentials: exclude, attestation: "none", timeout: 120000,
+    }});
+    const r = cred.response;
+    const cd = JSON.parse(new TextDecoder().decode(r.clientDataJSON));
+    const ad = new Uint8Array(r.getAuthenticatorData());
+    const spki = r.getPublicKey();
+    let keyOK = false;
+    try { await crypto.subtle.importKey("spki", spki, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]); keyOK = true; } catch {}
+    const rows = [
+      [cred.type === "public-key", "A public-key credential came back", `authenticatorAttachment: ${cred.authenticatorAttachment}`],
+      ...clientChecks(cd, "webauthn.create", challenge),
+      ...(await authDataChecks(ad, true)),
+      [r.getPublicKeyAlgorithm() === -7, "Algorithm ES256 (P-256)", String(r.getPublicKeyAlgorithm())],
+      [keyOK, "Public key is a valid P-256 key"],
+    ];
+    Lab.checks(out, rows);
+    if (rows.every(([ok]) => ok !== false)) {
+      save([...saved(), { id: cred.id, name, userId: Lab.b64url(userId), spki: Lab.b64url(spki), at: Date.now() }]);
+      list();
+    }
+  } catch (e) {
+    const expected = e.name === "InvalidStateError" && exclude.length;
+    Lab.checks(out, [[expected ? true : false, expected ? "Duplicate refused (InvalidStateError) — as it should be" : `Registration failed: ${e.name}`, e.message]]);
+  }
+}
+
+/** WebAuthn ECDSA signatures are DER; WebCrypto wants raw r‖s (64 bytes). */
+function derToRaw(der) {
+  let i = 2; const read = () => { const len = der[i + 1]; let v = der.slice(i + 2, i + 2 + len); i += 2 + len;
+    while (v.length > 32 && v[0] === 0) v = v.slice(1); const out = new Uint8Array(32); out.set(v, 32 - v.length); return out; };
+  const r = read(), s = read(); const raw = new Uint8Array(64); raw.set(r, 0); raw.set(s, 32); return raw;
+}
+
+async function signIn(discoverable) {
+  const out = document.getElementById("auth");
+  const known = saved();
+  if (!discoverable && !known.length) { out.innerHTML = '<p class="muted">Register a passkey first.</p>'; return; }
+  const challenge = Lab.random(32);
+  out.innerHTML = '<p class="muted">Waiting for the authenticator…</p>';
+  try {
+    const cred = await navigator.credentials.get({ publicKey: {
+      challenge, rpId: RP, userVerification: "required", timeout: 120000,
+      allowCredentials: discoverable ? [] : known.map((p) => ({ type: "public-key", id: Lab.unb64url(p.id) })),
+    }});
+    const r = cred.response;
+    const cd = JSON.parse(new TextDecoder().decode(r.clientDataJSON));
+    const ad = new Uint8Array(r.authenticatorData);
+    const match = known.find((p) => p.id === cred.id);
+    let sigOK = null;
+    if (match) {
+      const key = await crypto.subtle.importKey("spki", Lab.unb64url(match.spki), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+      const signed = new Uint8Array([...ad, ...(await Lab.sha256(r.clientDataJSON))]);
+      sigOK = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key, derToRaw(new Uint8Array(r.signature)), signed);
+    }
+    Lab.checks(out, [
+      [!!match, match ? `Signed in as ${match.name}` : "Credential isn't one registered on this page", cred.id],
+      ...clientChecks(cd, "webauthn.get", challenge),
+      ...(await authDataChecks(ad, false)),
+      [sigOK, sigOK ? "Signature verified with the public key saved at registration" : "Signature does NOT verify"],
+      [match && r.userHandle ? Lab.b64url(r.userHandle) === match.userId : null,
+       r.userHandle ? "User handle matches the account" : "No user handle returned (allowed when the site named the passkey)"],
+    ]);
+  } catch (e) {
+    Lab.checks(out, [[false, `Sign-in failed: ${e.name}`, e.message]]);
+  }
+}
+</script>
+</div></body></html>

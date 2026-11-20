@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Hidden-field trap — Deadbolt lab</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="stylesheet" href="/lab/lab.css">
+<script src="/lab/lab.js"></script>
+</head>
+<body><div class="wrap">
+<header class="lab"><img src="/logo.png" alt=""><strong>Deadbolt lab</strong><span style="flex:1"></span><a href="https://deadbolt.osborne.vc/lab/">← All tests</a></header>
+
+<h1>7 · Hidden-field trap</h1>
+<div class="expect"><b>Expected:</b> this page also has an <i>invisible</i> password field (opacity 0) and a 1-pixel one —
+the trick some pages use to harvest autofill. After filling, the table should show only the <b>visible</b> fields filled.</div>
+<form class="card" onsubmit="event.preventDefault()">
+  <label for="u">Username</label><input id="u" autocomplete="username">
+  <input id="trap1" type="password" style="opacity:0;position:absolute;left:0;top:0;width:200px">
+  <input id="trap2" type="password" style="width:1px;height:1px;border:0;padding:0">
+  <label for="p">Password</label><input id="p" type="password" autocomplete="current-password">
+  <div class="row"><button type="button" onclick="report()">Check what was filled</button></div>
+  <table id="t" style="margin-top:14px"></table>
+</form>
+<script>
+function report() {
+  const rows = [["u","Username (visible)"],["p","Password (visible)"],["trap1","Transparent password (trap)"],["trap2","1-pixel password (trap)"]];
+  document.getElementById("t").innerHTML = "<tr><th>Field</th><th>Filled?</th><th>Should be</th></tr>" + rows.map(([id, name]) => {
+    const filled = !!document.getElementById(id).value, trap = id.startsWith("trap");
+    const good = trap ? !filled : filled;
+    return `<tr><td>${name}</td><td>${filled ? "yes" : "no"}</td><td class="${good ? "ok" : "bad"}">${trap ? "empty" : "filled"} ${good ? "✓" : "✗"}</td></tr>`;
+  }).join("");
+}
+</script>
+</div></body></html>

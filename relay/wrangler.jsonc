@@ -1,0 +1,24 @@
+// Deadbolt sync relay. Holds only end-to-end encrypted, signed messages; see src/index.js.
+// Deploy: cd relay && npx wrangler@4 deploy        Local: npx wrangler@4 dev --port 8787
+{
+  "name": "deadbolt-relay",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "durable_objects": {
+    "bindings": [
+      { "name": "MAILBOX", "class_name": "Mailbox" },
+      { "name": "LINK", "class_name": "LinkRoom" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Mailbox", "LinkRoom"] }],
+  // Per-IP limits (see src/index.js). namespace_id is any number unique within the account.
+  "ratelimits": [
+    { "name": "LINK_POST_LIMIT", "namespace_id": "4101", "simple": { "limit": 20, "period": 60 } },
+    { "name": "LINK_READ_LIMIT", "namespace_id": "4102", "simple": { "limit": 120, "period": 60 } },
+    { "name": "MAILBOX_LIMIT", "namespace_id": "4103", "simple": { "limit": 600, "period": 60 } },
+    { "name": "ICON_LIMIT", "namespace_id": "4104", "simple": { "limit": 300, "period": 60 } }
+  ],
+  // APNS_KEY is a secret (wrangler secret put APNS_KEY < AuthKey_89N83BZQFJ.p8); the rest are public.
+  "vars": { "APNS_KEY_ID": "89N83BZQFJ", "APNS_TEAM": "4CMN2DUGUL", "APNS_TOPIC": "com.osborne.deadbolt" },
+  "routes": [{ "pattern": "deadbolt-relay.osborne.vc", "custom_domain": true }]
+}

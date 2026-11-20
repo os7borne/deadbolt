@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Two-step sign-in — Deadbolt lab</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="stylesheet" href="/lab/lab.css">
+<script src="/lab/lab.js"></script>
+</head>
+<body><div class="wrap">
+<header class="lab"><img src="/logo.png" alt=""><strong>Deadbolt lab</strong><span style="flex:1"></span><a href="https://deadbolt.osborne.vc/lab/">← All tests</a></header>
+
+<h1>4 · Two-step sign-in</h1>
+<div class="expect"><b>Expected:</b> step one (email only) shows Deadbolt's menu and fills just the email. Step two fills the
+password. After <i>Sign in</i>, Deadbolt offers to save <b>with the email</b> from step one.</div>
+<form class="card" id="step1" onsubmit="event.preventDefault(); next()">
+  <label for="u">Email</label><input id="u" type="email" autocomplete="username">
+  <div class="row"><button type="submit">Next</button></div>
+</form>
+<form class="card" id="step2" hidden onsubmit="event.preventDefault(); setTimeout(() => location.href = 'welcome.html?case=two-step', 150)">
+  <p class="muted" id="who"></p>
+  <input type="text" autocomplete="username" id="u2" style="position:absolute;left:-9999px" aria-hidden="true" tabindex="-1">
+  <label for="p">Password</label><input id="p" type="password" autocomplete="current-password">
+  <div class="row"><button type="submit">Sign in</button></div>
+</form>
+<script>
+function next() {
+  const e = document.getElementById("u").value;
+  document.getElementById("u2").value = e;
+  document.getElementById("who").textContent = e;
+  document.getElementById("step1").hidden = true;
+  document.getElementById("step2").hidden = false;
+  document.getElementById("p").focus();
+}
+</script>
+</div></body></html>

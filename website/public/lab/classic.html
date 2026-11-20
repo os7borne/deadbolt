@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Classic form — Deadbolt lab</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="stylesheet" href="/lab/lab.css">
+<script src="/lab/lab.js"></script>
+</head>
+<body><div class="wrap">
+<header class="lab"><img src="/logo.png" alt=""><strong>Deadbolt lab</strong><span style="flex:1"></span><a href="https://deadbolt.osborne.vc/lab/">← All tests</a></header>
+
+<h1>1 · Classic form</h1>
+<div class="expect"><b>Expected:</b> the fill menu appears under the fields (Chrome/Aside) or system AutoFill offers Deadbolt (Safari).
+After <i>Sign in</i>, the next page shows a <b>Save to Deadbolt?</b> card, or <b>Update</b> if this username is already saved with another password.</div>
+<form class="card" action="welcome.html" method="get" onsubmit="event.preventDefault(); setTimeout(() => location.href = 'welcome.html?case=classic', 150)">
+  <label for="u">Email</label><input id="u" name="username" type="email" autocomplete="username">
+  <label for="p">Password</label><input id="p" name="password" type="password" autocomplete="current-password">
+  <div class="row"><button type="submit">Sign in</button></div>
+</form>
+</div></body></html>

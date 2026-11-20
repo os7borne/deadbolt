@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Tests — Deadbolt lab</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="stylesheet" href="/lab/lab.css">
+<script src="/lab/lab.js"></script>
+</head>
+<body><div class="wrap">
+<header class="lab"><img src="/logo.png" alt=""><strong>Deadbolt lab</strong><span style="flex:1"></span><a href="https://deadbolt.osborne.vc/lab/">← All tests</a></header>
+
+<h1>Deadbolt test lab</h1>
+<p class="lead">Fake sign-in pages for checking Deadbolt's filling, saving, one-time codes and passkeys. Use any made-up
+username and password. Nothing is sent anywhere; test data stays in this browser.</p>
+<h2>Saving and filling</h2>
+<div class="grid">
+  <a class="case" href="classic.html"><b>1 · Classic form</b><span>Form submit, then a new page. Should offer to save.</span></a>
+  <a class="case" href="script-login.html"><b>2 · Script sign-in, no form</b><span>JavaScript sign-in, page doesn't change. Should offer to save.</span></a>
+  <a class="case" href="icon-button.html"><b>3 · Icon-only button</b><span>The button is just an arrow. Should offer to save.</span></a>
+  <a class="case" href="two-step.html"><b>4 · Two-step sign-in</b><span>Email first, then password. Should save with the email.</span></a>
+  <a class="case" href="https://lab-login.osborne.vc/lab/sso.html"><b>5 · Redirect to another subdomain</b><span>Sign in on lab-login.osborne.vc, land here. Should offer to save.</span></a>
+  <a class="case" href="change-password.html"><b>6 · Change password</b><span>Old, new, confirm. Should offer to update with the new one.</span></a>
+  <a class="case" href="hidden-fields.html"><b>7 · Hidden-field trap</b><span>Invisible password fields. Deadbolt must not fill them.</span></a>
+  <a class="case" href="frame.html"><b>8 · Sign-in inside a frame</b><span>Not supported yet: nothing should happen.</span></a>
+</div>
+<h2>Codes and passkeys</h2>
+<div class="grid">
+  <a class="case" href="codes.html"><b>9 · One-time codes</b><span>Add a test 2FA secret, then fill and verify a code.</span></a>
+  <a class="case" href="passkeys.html"><b>10 · Passkeys</b><span>Register and sign in; every signature verified in this page.</span></a>
+  <a class="case" href="spa.html"><b>11 · Single-page sign-in</b><span>Signs in without leaving the page, slowly. The save prompt must still appear.</span></a>
+</div>
+<h2>Cards and addresses</h2>
+<div class="grid">
+  <a class="case" href="card-checkout.html"><b>12 · Card checkout</b><span>Pick a saved card: Touch ID on the Mac, then the fields fill. The security code must never be saved as a password.</span></a>
+  <a class="case" href="address-form.html"><b>13 · Address form</b><span>Pick an identity: name, address and drop-downs fill. ID numbers never do.</span></a>
+</div>
+</div></body></html>

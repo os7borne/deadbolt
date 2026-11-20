@@ -24,8 +24,14 @@
 	<string>$(DEVELOPMENT_TEAM).com.osborne.deadbolt.shared</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Scan QR codes to link a new device or add a one-time code.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Unlock your Deadbolt vault.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

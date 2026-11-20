@@ -15,7 +15,7 @@ let package = Package(
         .target(
             name: "DeadboltCore",
             dependencies: [.product(name: "Sodium", package: "swift-sodium")],
-            resources: [.copy("Resources/bip39-english.txt")]
+            resources: [.copy("Resources/bip39-english.txt"), .copy("Resources/public_suffix_list.dat")]
         ),
         .testTarget(name: "DeadboltCoreTests", dependencies: ["DeadboltCore"]),
     ]

@@ -34,6 +34,10 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
                                           allowed: requestParameters.allowedCredentials))
     }
 
+    override func prepareOneTimeCodeCredentialList(for serviceIdentifiers: [ASCredentialServiceIdentifier]) {
+        model.mode = .codes(hosts: serviceIdentifiers.compactMap(Self.host))
+    }
+
     /// Tapping a QuickType suggestion: we always want Face ID first, so ask for the UI.
     override func provideCredentialWithoutUserInteraction(for credentialRequest: any ASCredentialRequest) {
         cancel(.userInteractionRequired)
@@ -48,6 +52,10 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
         case let r as ASPasskeyCredentialRequest:
             guard let identity = r.credentialIdentity as? ASPasskeyCredentialIdentity else { return cancel(.credentialIdentityNotFound) }
             model.mode = .providePasskey(credentialID: identity.credentialID, clientDataHash: r.clientDataHash)
+        case let r as ASOneTimeCodeCredentialRequest:
+            guard let identity = r.credentialIdentity as? ASOneTimeCodeCredentialIdentity,
+                  let id = identity.recordIdentifier.flatMap(UUID.init(uuidString:)) else { return cancel(.credentialIdentityNotFound) }
+            model.mode = .provideCode(id)
         default:
             cancel(.failed)
         }
@@ -94,6 +102,10 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
     func complete(registration r: WebAuthn.Registration, rpID: String, clientDataHash: Data) {
         extensionContext.completeRegistrationRequest(using: ASPasskeyRegistrationCredential(
             relyingParty: rpID, clientDataHash: clientDataHash, credentialID: r.credentialID, attestationObject: r.attestationObject))
+    }
+
+    func complete(code: String) {
+        extensionContext.completeOneTimeCodeRequest(using: ASOneTimeCodeCredential(code: code))
     }
 
     func completeSave() {

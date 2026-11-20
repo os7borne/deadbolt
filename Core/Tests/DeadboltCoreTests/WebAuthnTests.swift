@@ -73,3 +73,51 @@ import Testing
 extension Data {
     var hex: String { map { String(format: "%02x", $0) }.joined() }
 }
+
+@Suite struct PublicSuffixTests {
+    @Test(arguments: ["com", "uk", "co.uk", "github.io", "pages.dev", "foo.ck"])
+    func publicSuffixes(d: String) { #expect(PublicSuffix.isPublicSuffix(d)) }
+
+    @Test(arguments: ["github.com", "example.co.uk", "alex.github.io", "www.ck"])
+    func registrable(d: String) { #expect(!PublicSuffix.isPublicSuffix(d)) }
+
+    @Test func relyingPartyRules() {
+        #expect(PublicSuffix.isValidRelyingParty("github.com", for: "github.com"))
+        #expect(PublicSuffix.isValidRelyingParty("github.com", for: "gist.github.com"))      // parent domain
+        #expect(!PublicSuffix.isValidRelyingParty("gist.github.com", for: "github.com"))     // child of the page
+        #expect(!PublicSuffix.isValidRelyingParty("evil.com", for: "github.com"))
+        #expect(!PublicSuffix.isValidRelyingParty("com", for: "github.com"))                 // public suffix
+        #expect(!PublicSuffix.isValidRelyingParty("github.io", for: "evil.github.io"))       // private-section suffix
+        #expect(PublicSuffix.isValidRelyingParty("alex.github.io", for: "alex.github.io"))
+        #expect(!PublicSuffix.isValidRelyingParty("co.uk", for: "bank.co.uk"))
+        #expect(PublicSuffix.isValidRelyingParty("localhost", for: "localhost"))
+    }
+
+    @Test func registrationCarriesBrowserFields() throws {
+        let pk = Passkey.create(relyingPartyID: "x.com", userName: "u", userHandle: Data([1]))
+        let r = try WebAuthn.register(pk, supportedAlgorithms: [-7])
+        #expect(r.authenticatorData.count == 148 && r.authenticatorData[32] == 0x5D)
+        #expect(try P256.Signing.PublicKey(derRepresentation: r.publicKeyDER).rawRepresentation == pk.publicKey.rawRepresentation)
+    }
+}
+
+@Suite struct RegistrableDomainTests {
+    @Test(arguments: [
+        ("accounts.google.com", "google.com"), ("google.com", "google.com"), ("a.b.example.co.uk", "example.co.uk"),
+        ("alex.github.io", "alex.github.io"), ("x.alex.github.io", "alex.github.io"), ("WWW.Example.COM.", "example.com"),
+    ])
+    func registrable(host: String, expected: String) { #expect(PublicSuffix.registrableDomain(host) == expected) }
+
+    @Test func publicSuffixAloneHasNone() {
+        #expect(PublicSuffix.registrableDomain("co.uk") == nil)
+        #expect(PublicSuffix.registrableDomain("com") == nil)
+        #expect(PublicSuffix.registrableDomain("") == nil)
+    }
+
+    @Test func sameSiteForSavePrompts() {
+        #expect(PublicSuffix.sameSite("login.example.com", "app.example.com"))
+        #expect(!PublicSuffix.sameSite("example.com", "example.com.evil.net"))
+        #expect(!PublicSuffix.sameSite("alex.github.io", "eve.github.io"))   // different sites on a shared host
+        #expect(!PublicSuffix.sameSite("bank.co.uk", "evil.co.uk"))
+    }
+}

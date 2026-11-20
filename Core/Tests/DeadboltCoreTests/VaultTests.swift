@@ -9,7 +9,7 @@ import Testing
     ])
     func normalizes(input: String, expected: String) { #expect(Site.normalize(input) == expected) }
 
-    @Test(arguments: ["", "   ", "not a host", "foo", "javascript:alert(1)"])
+    @Test(arguments: ["", "   ", "not a host", "foo", "javascript:alert(1)", "android://com.app", "ftp://files.example.com"])
     func rejects(input: String) { #expect(Site.normalize(input) == nil) }
 
     @Test func coverageIsStrict() {
@@ -70,7 +70,7 @@ import Testing
         let b = try v.save(host: "x.com", username: "bea", password: "2", now: t0)
         let c = try v.save(host: "x.com", username: "amy", password: "3", now: t0)
         v.markUsed(c, now: t0.addingTimeInterval(100))
-        #expect(v.accounts(for: "x.com").map(\.id) == [a, c, b])
+        #expect(v.accounts(for: "x.com").map(\.id) == [c, a, b])   // c was used: it leads; the never-used ★ (a) then b follow
         #expect(v.accounts(for: "y.com").isEmpty)
     }
 
@@ -136,6 +136,29 @@ import Testing
     }
 }
 
+@Suite struct CodeOnlyTests {
+    @Test func standaloneCodeHasNoSiteAndIsNeverOffered() throws {
+        var v = Vault()
+        let id = try v.saveCode(host: nil, title: "Microsoft", username: "me@example.com", secret: "JBSWY3DPEHPK3PXP")
+        let item = try #require(v.login(id))
+        #expect(item.isCodeOnly && item.sites.isEmpty && item.title == "Microsoft" && !item.preferred)
+        #expect(v.accounts(for: "microsoft.com").isEmpty)   // never offered for a site
+    }
+
+    @Test func codeOnASiteAttachesToTheExistingAccountOrStaysCodeOnly() throws {
+        var v = Vault()
+        let real = try v.save(host: "github.com", username: "Alex", password: "pw")
+        let same = try v.saveCode(host: "https://www.github.com", title: "GitHub", username: "alex", secret: "JBSWY3DPEHPK3PXP")
+        #expect(same == real && v.login(real)?.password == "pw" && v.login(real)?.totpSecret != nil)   // password untouched
+        #expect(!(v.login(real)?.isCodeOnly ?? true))
+
+        let other = try v.saveCode(host: "github.com", title: nil, username: "bot", secret: "JBSWY3DPEHPK3PXP")
+        #expect(v.login(other)?.isCodeOnly == true && v.login(other)?.preferred == false)
+        #expect(v.accounts(for: "github.com").first?.id == real)    // the real login is still suggested first
+        #expect(throws: VaultError.self) { try v.saveCode(host: "not a site", title: nil, username: "", secret: "x") }
+    }
+}
+
 @Suite struct GeneratorTests {
     @Test func passwordsHaveEveryClassAndNoLookalikes() {
         for _ in 0..<200 {
@@ -149,6 +172,30 @@ import Testing
         }
         #expect(PasswordGenerator.password(.init(length: 2)).count == 8)
         #expect(!PasswordGenerator.password(.init(symbols: false)).contains(where: { PasswordGenerator.symbolSet.contains($0) }))
+    }
+
+    @Test func optionsAreHonoured() throws {
+        for _ in 0..<200 {
+            // Letters only, lowercase.
+            let l = PasswordGenerator.password(.init(length: 20, symbols: false, digits: false, upper: false))
+            #expect(l.count == 20 && l.allSatisfy { PasswordGenerator.lower.contains($0) })
+            // Minimum digits and symbols are met.
+            let m = PasswordGenerator.password(.init(length: 16, minDigits: 4, minSymbols: 3))
+            #expect(m.filter { PasswordGenerator.digitSet.contains($0) }.count >= 4)
+            #expect(m.filter { PasswordGenerator.symbolSet.contains($0) }.count >= 3)
+            // Ambiguous characters allowed when asked.
+            let d = PasswordGenerator.password(.init(length: 12, symbols: false, upper: false, lower: false, avoidAmbiguous: false))
+            #expect(d.allSatisfy { PasswordGenerator.digitFull.contains($0) })
+        }
+        // Nothing enabled falls back to letters; impossible minimums are trimmed to fit.
+        let none = PasswordGenerator.password(.init(symbols: false, digits: false, upper: false, lower: false))
+        #expect(none.count == 20 && none.allSatisfy { $0.isLetter })
+        let tight = PasswordGenerator.Options(length: 8, minDigits: 30, minSymbols: 30).normalized
+        #expect(tight.minDigits + tight.minSymbols + 2 <= 8)
+        #expect(PasswordGenerator.password(.init(length: 8, minDigits: 30, minSymbols: 30)).count == 8)
+        // Settings survive encoding.
+        let s = PasswordGenerator.Settings(options: .init(length: 33, avoidAmbiguous: false), words: 7, passphrase: true)
+        #expect(try JSONDecoder().decode(PasswordGenerator.Settings.self, from: JSONEncoder().encode(s)) == s)
     }
 
     @Test func passphraseShape() {
@@ -171,5 +218,17 @@ import Testing
         let (vault, _) = try store.mutate(key: key) { try $0.save(host: "a.com", username: "extension", password: "2") }
         #expect(vault.logins.count == 2)
         #expect(try store.read().open(key: key).login(first)?.username == "app")
+    }
+}
+
+@Suite struct VaultStoreDeleteTests {
+    @Test func deleteRemovesFileAndIsIdempotent() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("deadbolt-del-\(UUID().uuidString)/vault.json")
+        let store = VaultStore(url: url)
+        try store.write(VaultFile.create(vault: Vault(), key: .generate(), password: "pw", recoveryKey: .generate(), kdf: .testing()))
+        #expect(store.exists)
+        try store.delete()
+        #expect(!store.exists)
+        try store.delete() // already gone: no error
     }
 }

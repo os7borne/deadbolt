@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Card checkout — Deadbolt lab</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="stylesheet" href="/lab/lab.css">
+<script src="/lab/lab.js"></script>
+<style>select{width:100%;height:44px;padding:0 10px;border-radius:10px;border:1px solid var(--line2);background:#101115;color:var(--text);font:inherit}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}</style>
+</head>
+<body><div class="wrap">
+<header class="lab"><img src="/logo.png" alt=""><strong>Deadbolt lab</strong><span style="flex:1"></span><a href="https://deadbolt.osborne.vc/lab/">← All tests</a></header>
+
+<h1>12 · Card checkout</h1>
+<div class="expect"><b>Expected:</b> click into a card field: a Deadbolt menu lists your saved cards (name, brand, last four digits, expiry). Pick one: your Mac asks for Touch ID
+(naming this site), then every <i>visible</i> field fills. The card must <b>not</b> fill the hidden trap field, and the security-code box (masked like a password)
+must <b>not</b> make Deadbolt offer to save a password when you press Pay. Use a real saved card of yours; nothing here is sent anywhere.</div>
+
+<h2>A · Fields marked with autocomplete hints</h2>
+<form class="card" id="a" onsubmit="event.preventDefault();report('a')">
+  <label for="a-name">Name on card</label><input id="a-name" autocomplete="cc-name">
+  <label for="a-num">Card number</label><input id="a-num" type="tel" inputmode="numeric" autocomplete="cc-number">
+  <div class="two">
+    <div><label for="a-exp">Expiry</label><input id="a-exp" placeholder="MM / YY" autocomplete="cc-exp"></div>
+    <div><label for="a-cvc">Security code (masked)</label><input id="a-cvc" type="password" autocomplete="cc-csc"></div>
+  </div>
+  <input id="a-trap" type="password" autocomplete="cc-csc" style="opacity:0;position:absolute;left:0;top:0;width:200px" tabindex="-1">
+  <div class="row"><button type="submit">Pay</button></div>
+  <table id="a-t" style="margin-top:14px"></table>
+</form>
+
+<h2>B · No hints: guessed from names and labels, split expiry</h2>
+<form class="card" id="b" onsubmit="event.preventDefault();report('b')">
+  <label for="b-name">Cardholder name</label><input id="b-name" name="cardholder_name">
+  <label for="b-num">Card number</label><input id="b-num" name="card_number" placeholder="1234 5678 9012 3456">
+  <div class="two">
+    <div><label for="b-mm">Expiry month</label>
+      <select id="b-mm" name="expiryMonth"><option value="">Month</option><option>01</option><option>02</option><option>03</option><option>04</option><option>05</option><option>06</option><option>07</option><option>08</option><option>09</option><option>10</option><option>11</option><option>12</option></select></div>
+    <div><label for="b-yy">Expiry year</label>
+      <select id="b-yy" name="expiryYear"><option value="">Year</option><script>for(let y=new Date().getFullYear();y<new Date().getFullYear()+15;y++)document.write("<option>"+y+"</option>")</script></select></div>
+  </div>
+  <label for="b-cvv">CVV</label><input id="b-cvv" name="cvv" maxlength="4">
+  <div class="row"><button type="submit">Pay</button></div>
+  <table id="b-t" style="margin-top:14px"></table>
+</form>
+
+<script>
+const forms = {
+  a: [["a-name","Name on card"],["a-num","Card number"],["a-exp","Expiry"],["a-cvc","Security code"],["a-trap","Hidden trap (must stay empty)"]],
+  b: [["b-name","Cardholder name"],["b-num","Card number"],["b-mm","Expiry month"],["b-yy","Expiry year"],["b-cvv","CVV"]],
+};
+function report(k) {
+  document.getElementById(k + "-t").innerHTML = "<tr><th>Field</th><th>Filled?</th><th>Should be</th></tr>" + forms[k].map(([id, name]) => {
+    const el = document.getElementById(id), filled = !!el.value, trap = id.endsWith("trap");
+    const good = trap ? !filled : filled;
+    return `<tr><td>${name}</td><td>${filled ? "yes" : "no"}</td><td class="${good ? "ok" : "bad"}">${trap ? "empty" : "filled"} ${good ? "✓" : "✗"}</td></tr>`;
+  }).join("") + "<tr><td colspan=3 class=muted>Values are not shown here. After Pay, Deadbolt must not offer to save a password.</td></tr>";
+}
+</script>
+</div></body></html>

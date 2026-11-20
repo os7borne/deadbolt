@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Single-page sign-in — Deadbolt lab</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="stylesheet" href="/lab/lab.css">
+<script src="/lab/lab.js"></script>
+</head>
+<body><div class="wrap">
+<header class="lab"><img src="/logo.png" alt=""><strong>Deadbolt lab</strong><span style="flex:1"></span><a href="https://deadbolt.osborne.vc/lab/">← All tests</a></header>
+
+<h1>11 · Single-page sign-in</h1>
+<div class="expect"><b>Expected:</b> like many web apps, this page signs in <b>without leaving the page</b> and takes about 4 seconds
+(the form stays on screen, filled in, while it "talks to the server"). Then it swaps to a welcome message. Deadbolt should offer
+<b>Save to Deadbolt?</b> a moment after the welcome appears, not before.</div>
+<div id="app">
+  <form class="card" id="f">
+    <label for="u">Email</label><input id="u" type="email" autocomplete="username">
+    <label for="p">Password</label><input id="p" type="password" autocomplete="current-password">
+    <div class="row"><button type="submit" id="go">Sign in</button></div>
+  </form>
+</div>
+<script>
+  document.getElementById("f").addEventListener("submit", (e) => {
+    e.preventDefault();
+    document.getElementById("go").textContent = "Signing in…";
+    setTimeout(() => {
+      history.pushState({}, "", "#/dashboard");
+      document.getElementById("app").innerHTML = '<div class="card"><h2 style="margin:0">Welcome back</h2><p>You are signed in. No page load happened.</p></div>';
+    }, 4000);
+  });
+</script>
+</div></body></html>

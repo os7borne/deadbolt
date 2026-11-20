@@ -1,6 +1,11 @@
 import Foundation
 import Security
 
+/// Cryptographically secure random bytes for app code (link secrets etc.). Same source as `Random`.
+public enum SecureRandom {
+    public static func bytes(_ count: Int) -> Data { Random.bytes(count) }
+}
+
 enum Random {
     /// Cryptographically secure random bytes from the system CSPRNG.
     static func bytes(_ count: Int) -> Data {

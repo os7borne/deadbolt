@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>One-time codes — Deadbolt lab</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="stylesheet" href="/lab/lab.css">
+<script src="/lab/lab.js"></script>
+<script src="/lab/qrcode.js"></script>
+</head>
+<body><div class="wrap">
+<header class="lab"><img src="/logo.png" alt=""><strong>Deadbolt lab</strong><span style="flex:1"></span><a href="./">← All tests</a></header>
+
+<h1>9 · One-time codes</h1>
+<div class="expect"><b>Expected:</b> after adding the setup key below to a Deadbolt login, the code field offers Deadbolt's code
+(iPhone/Mac AutoFill), or copy it from Deadbolt. <b>Verify</b> confirms the code matches this page's secret.</div>
+
+<div class="card">
+  <h2 style="margin-top:0">1 · Add this test secret to Deadbolt</h2>
+  <p class="muted" style="margin:0 0 12px">Open (or create) a login for <code>deadbolt.osborne.vc</code> in Deadbolt → <b>Add one-time code</b>, then
+  scan this QR code with the iPhone, or on the Mac take a screenshot of it (⌃⇧⌘4) and choose <b>Paste Screenshot</b>.</p>
+  <div id="qr" style="background:#fff;padding:14px;border-radius:12px;width:max-content;line-height:0"></div>
+  <p class="muted" style="margin:14px 0 8px">Can't scan? Use the setup key or link instead:</p>
+  <label>Setup key</label>
+  <div class="row" style="margin-top:0"><input id="secret" readonly class="mono"><button class="secondary" type="button" onclick="copy('secret')">Copy</button></div>
+  <label>otpauth:// link</label>
+  <div class="row" style="margin-top:0"><input id="uri" readonly class="mono"><button class="secondary" type="button" onclick="copy('uri')">Copy</button></div>
+  <div class="row"><button class="secondary" type="button" onclick="newSecret()">New secret</button></div>
+</div>
+
+<form class="card" onsubmit="event.preventDefault(); verify()">
+  <h2 style="margin-top:0">2 · Fill and verify a code</h2>
+  <label for="u">Username</label><input id="u" autocomplete="username" value="lab-user@example.com">
+  <label for="code">One-time code</label>
+  <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" class="mono" style="font-size:20px;letter-spacing:.2em">
+  <div class="row"><button type="submit">Verify</button></div>
+  <div id="result" class="result"></div>
+</form>
+
+<details class="card"><summary>Show this page's current code (to compare by eye)</summary>
+  <p class="mono" style="font-size:24px;margin:12px 0 0" id="now">—</p>
+</details>
+
+<script>
+const B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+const enc32 = (bytes) => { let bits = 0, v = 0, out = ""; for (const b of bytes) { v = (v << 8) | b; bits += 8;
+  while (bits >= 5) { out += B32[(v >>> (bits - 5)) & 31]; bits -= 5; } } if (bits) out += B32[(v << (5 - bits)) & 31]; return out; };
+const dec32 = (s) => { let bits = 0, v = 0; const out = []; for (const c of s.toUpperCase().replace(/[^A-Z2-7]/g, "")) {
+  v = (v << 5) | B32.indexOf(c); bits += 5; if (bits >= 8) { out.push((v >>> (bits - 8)) & 255); bits -= 8; } } return new Uint8Array(out); };
+
+/** RFC 6238 TOTP (SHA-1, 6 digits, 30 s) with WebCrypto. */
+async function totp(secret, t = Date.now(), step = 0) {
+  const counter = Math.floor(t / 1000 / 30) + step;
+  const msg = new DataView(new ArrayBuffer(8)); msg.setUint32(4, counter); msg.setUint32(0, Math.floor(counter / 2 ** 32));
+  const key = await crypto.subtle.importKey("raw", dec32(secret), { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, msg.buffer));
+  const o = mac[mac.length - 1] & 15;
+  const bin = ((mac[o] & 127) << 24) | (mac[o + 1] << 16) | (mac[o + 2] << 8) | mac[o + 3];
+  return String(bin % 1e6).padStart(6, "0");
+}
+
+function show() {
+  const s = localStorage.getItem("lab-totp");
+  document.getElementById("secret").value = s;
+  const uri = `otpauth://totp/Deadbolt%20lab:lab-user@example.com?secret=${s}&issuer=Deadbolt%20lab`;
+  document.getElementById("uri").value = uri;
+  const qr = qrcode(0, "M"); qr.addData(uri); qr.make();
+  document.getElementById("qr").innerHTML = qr.createSvgTag({ cellSize: 5, margin: 0, scalable: false });
+}
+function newSecret() { localStorage.setItem("lab-totp", enc32(Lab.random(20))); show(); document.getElementById("result").innerHTML = ""; }
+if (!localStorage.getItem("lab-totp")) newSecret(); else show();
+
+async function copy(id) { await navigator.clipboard.writeText(document.getElementById(id).value); }
+
+async function verify() {
+  const s = localStorage.getItem("lab-totp"), entered = document.getElementById("code").value.trim();
+  const [prev, cur, next] = await Promise.all([totp(s, Date.now(), -1), totp(s), totp(s, Date.now(), 1)]);
+  const ok = entered === cur || entered === prev || entered === next;
+  Lab.checks(document.getElementById("result"), [
+    [entered.length === 6, "Six digits entered", entered || "empty"],
+    [ok, ok ? "Code is valid for this secret" : "Code doesn't match this secret", ok ? (entered === cur ? "current window" : "neighbouring 30 s window (clock skew allowed)") : `expected ${cur}`],
+  ]);
+}
+setInterval(async () => { document.getElementById("now").textContent = await totp(localStorage.getItem("lab-totp")); }, 1000);
+</script>
+</div></body></html>

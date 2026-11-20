@@ -4,5 +4,9 @@
   "name": "deadbolt-site",
   "compatibility_date": "2026-11-01",
   "assets": { "directory": "./public" },
-  "routes": [{ "pattern": "deadbolt.osborne.vc", "custom_domain": true }]
+  // lab-login.osborne.vc: the "login on another subdomain" host for /lab test 5 (same site: osborne.vc)
+  "routes": [
+    { "pattern": "deadbolt.osborne.vc", "custom_domain": true },
+    { "pattern": "lab-login.osborne.vc", "custom_domain": true }
+  ]
 }

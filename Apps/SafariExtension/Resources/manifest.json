@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Deadbolt",
+  "version": "0.5.2",
+  "description": "Save and fill passwords from Deadbolt for Mac. Nothing is stored in Safari.",
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "nativeMessaging",
+    "storage",
+    "activeTab",
+    "alarms"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Deadbolt",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon-16.png",
+      "32": "icon-32.png"
+    }
+  },
+  "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "fieldmap.js",
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+  }
+}

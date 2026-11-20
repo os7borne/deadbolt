@@ -28,10 +28,11 @@ targets:
         embed: true
     entitlements:
       path: Apps/iOS/Deadbolt.entitlements
-      properties: &iosEntitlements
+      properties:
         com.apple.developer.authentication-services.autofill-credential-provider: true
         com.apple.security.application-groups: [group.com.osborne.deadbolt]
         keychain-access-groups: [$(AppIdentifierPrefix)com.osborne.deadbolt.shared]
+        aps-environment: development
     info:
       path: Apps/iOS/Info.plist
       properties:
@@ -42,6 +43,8 @@ targets:
         UIUserInterfaceStyle: Dark
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSFaceIDUsageDescription: Unlock your Deadbolt vault.
+        NSCameraUsageDescription: Scan QR codes to link a new device or add a one-time code.
+        UIBackgroundModes: [remote-notification]
         DeadboltKeychainGroup: $(DEVELOPMENT_TEAM).com.osborne.deadbolt.shared
         LSApplicationCategoryType: public.app-category.utilities
     settings:
@@ -58,7 +61,10 @@ targets:
       - package: DeadboltCore
     entitlements:
       path: Apps/iOSAutoFill/DeadboltAutoFill.entitlements
-      properties: *iosEntitlements
+      properties:
+        com.apple.developer.authentication-services.autofill-credential-provider: true
+        com.apple.security.application-groups: [group.com.osborne.deadbolt]
+        keychain-access-groups: [$(AppIdentifierPrefix)com.osborne.deadbolt.shared]
     info:
       path: Apps/iOSAutoFill/Info.plist
       properties:
@@ -76,10 +82,100 @@ targets:
               ProvidesPasswords: true
               ProvidesPasskeys: true
               SupportsSavePasswordCredentials: true
+              ProvidesOneTimeCodes: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.osborne.deadbolt.autofill
         TARGETED_DEVICE_FAMILY: "1"
+
+  DeadboltBridge:
+    type: tool
+    platform: macOS
+    sources: [Apps/Bridge]
+    entitlements:
+      path: Apps/Bridge/DeadboltBridge.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.application-groups: [4CMN2DUGUL.com.osborne.deadbolt]
+    info:
+      path: Apps/Bridge/Info.plist
+      properties:
+        CFBundleIdentifier: com.osborne.deadbolt.bridge
+        CFBundleName: deadbolt-bridge
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+    settings:
+      base:
+        PRODUCT_NAME: deadbolt-bridge
+        PRODUCT_BUNDLE_IDENTIFIER: com.osborne.deadbolt.bridge
+        CREATE_INFOPLIST_SECTION_IN_BINARY: YES
+        SKIP_INSTALL: YES
+        ENABLE_HARDENED_RUNTIME: YES
+
+  DeadboltMacAutoFill:
+    type: app-extension
+    platform: macOS
+    sources:
+      - Apps/Shared
+      - Apps/macOSAutoFill
+      - path: Apps/iOSAutoFill/AutoFillViews.swift
+    dependencies:
+      - package: DeadboltCore
+    entitlements:
+      path: Apps/macOSAutoFill/DeadboltMacAutoFill.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.developer.authentication-services.autofill-credential-provider: true
+        com.apple.security.application-groups: [4CMN2DUGUL.com.osborne.deadbolt]
+        keychain-access-groups: [$(AppIdentifierPrefix)com.osborne.deadbolt.shared]
+    info:
+      path: Apps/macOSAutoFill/Info.plist
+      properties:
+        CFBundleDisplayName: Deadbolt
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSFaceIDUsageDescription: Unlock your Deadbolt vault.
+        DeadboltKeychainGroup: $(DEVELOPMENT_TEAM).com.osborne.deadbolt.shared
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.authentication-services-credential-provider-ui
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).CredentialProviderViewController
+          NSExtensionAttributes:
+            ASCredentialProviderExtensionShowsConfigurationUI: true
+            ASCredentialProviderExtensionCapabilities:
+              ProvidesPasswords: true
+              ProvidesPasskeys: true
+              ProvidesOneTimeCodes: true
+              ShowsConfigurationUI: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.osborne.deadbolt.autofill
+
+  DeadboltSafari:
+    type: app-extension
+    platform: macOS
+    sources:
+      - Apps/SafariExtension/SafariWebExtensionHandler.swift
+      - Apps/Bridge/BridgeClient.swift
+      - path: Apps/SafariExtension/Resources
+        buildPhase: resources
+    entitlements:
+      path: Apps/SafariExtension/DeadboltSafari.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.application-groups: [4CMN2DUGUL.com.osborne.deadbolt]
+    info:
+      path: Apps/SafariExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Deadbolt
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.Safari.web-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SafariWebExtensionHandler
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.osborne.deadbolt.safari
 
   DeadboltMac:
     type: application
@@ -87,10 +183,38 @@ targets:
     sources: [Apps/Shared, Apps/macOS]
     dependencies:
       - package: DeadboltCore
+      - target: DeadboltMacAutoFill
+        embed: true
+      - target: DeadboltSafari
+        embed: true
+      - target: DeadboltBridge
+        embed: true
+        codeSign: true
+        copy:
+          destination: executables
     entitlements:
       path: Apps/macOS/DeadboltMac.entitlements
       properties:
         com.apple.security.app-sandbox: true
+        com.apple.security.application-groups: [4CMN2DUGUL.com.osborne.deadbolt]
+        # macOS lists an AutoFill provider in System Settings only if its host app carries this too (as the extension does).
+        com.apple.developer.authentication-services.autofill-credential-provider: true
+        # Writes Chrome's native-messaging host manifest. Fine for direct/TestFlight-internal; App Review would want another route.
+        com.apple.security.temporary-exception.files.home-relative-path.read-write:
+          - /Library/Application Support/Google/Chrome/NativeMessagingHosts/
+          - /Library/Application Support/Google/Chrome Beta/NativeMessagingHosts/
+          - /Library/Application Support/Google/Chrome Canary/NativeMessagingHosts/
+          - /Library/Application Support/Chromium/NativeMessagingHosts/
+          - /Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts/
+          - /Library/Application Support/Microsoft Edge/NativeMessagingHosts/
+          - /Library/Application Support/Vivaldi/NativeMessagingHosts/
+          - /Library/Application Support/Arc/User Data/NativeMessagingHosts/
+          - /Library/Application Support/Yab/Chromium/NativeMessagingHosts/
+          - /Library/Application Support/Aside/NativeMessagingHosts/
+          - /Library/Application Support/com.ardia.browser/Chromium/NativeMessagingHosts/
+        com.apple.security.network.client: true
+        com.apple.security.files.user-selected.read-write: true
+        com.apple.security.files.bookmarks.app-scope: true
         keychain-access-groups: [$(AppIdentifierPrefix)com.osborne.deadbolt.shared]
     info:
       path: Apps/macOS/Info.plist

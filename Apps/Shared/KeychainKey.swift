@@ -36,11 +36,25 @@ enum KeychainKey {
         guard status == errSecSuccess else { throw KeychainError(status: status) }
     }
 
-    /// Shows Face ID / Touch ID. Returns nil if the person cancels.
+    /// Shows Face ID / Touch ID, then reads the key with that approval. Returns nil if the person cancels.
+    ///
+    /// Face ID runs as its own step (evaluatePolicy) and the Keychain read then reuses the approved context
+    /// with interaction disabled. Letting SecItemCopyMatching show Face ID itself fails with
+    /// errSecInteractionNotAllowed in the AutoFill extension while its sheet is still being presented.
     static func read(reason: String) async throws -> VaultKey? {
         let context = LAContext()
-        context.localizedReason = reason
-        context.localizedFallbackTitle = "" // no "Enter Passcode" button
+        context.localizedFallbackTitle = "" // no "Enter Passcode" button: the passcode must not open the vault
+        do {
+            try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
+        } catch let e as LAError {
+            switch e.code {
+            case .userCancel, .appCancel, .systemCancel, .userFallback: return nil
+            case .biometryLockout: throw KeychainError(biometry: "\(biometryName) is locked after too many tries. Use your master password.")
+            case .biometryNotEnrolled, .biometryNotAvailable: throw KeychainError(biometry: "\(biometryName) isn’t available. Use your master password.")
+            default: throw KeychainError(biometry: e.localizedDescription)
+            }
+        }
+        context.interactionNotAllowed = true // already approved: never prompt a second time
         var q = baseQuery()
         q[kSecReturnData] = true
         q[kSecUseAuthenticationContext] = context
@@ -55,7 +69,7 @@ enum KeychainKey {
             guard let data, data.count == 36 else { throw KeychainError(status: errSecDecode) }
             let epoch = data.prefix(4).reduce(UInt32(0)) { $0 << 8 | UInt32($1) }
             return try VaultKey(epoch: epoch, rawBytes: data.suffix(32))
-        case errSecUserCanceled, errSecAuthFailed:
+        case errSecUserCanceled:
             return nil
         default:
             throw KeychainError(status: status)
@@ -81,7 +95,30 @@ enum KeychainKey {
     }
 }
 
-struct KeychainError: Error, CustomStringConvertible {
+struct KeychainError: LocalizedError, CustomStringConvertible {
     let status: OSStatus
-    var description: String { "Keychain error \(status): \(SecCopyErrorMessageString(status, nil) as String? ?? "unknown")" }
+    var biometryMessage: String?
+
+    init(status: OSStatus) { self.status = status }
+    init(biometry message: String) { self.status = errSecAuthFailed; self.biometryMessage = message }
+
+    var isMissingKey: Bool { status == errSecItemNotFound }
+
+    /// Plain words for the person, with the code kept at the end so a screenshot is enough to diagnose.
+    var errorDescription: String? {
+        if let biometryMessage { return biometryMessage }
+        switch status {
+        case errSecItemNotFound:
+            return "\(KeychainKey.biometryName) needs setting up again on this device. Unlock with your master password and it’s restored. (\(status))"
+        case errSecInteractionNotAllowed:
+            return "\(KeychainKey.biometryName) wasn’t ready yet. Try again. (\(status))"
+        case errSecAuthFailed:
+            return "\(KeychainKey.biometryName) didn’t match. Try again or use your master password. (\(status))"
+        case errSecMissingEntitlement:
+            return "This build can’t reach the shared Keychain. (\(status))"
+        default:
+            return "Keychain error \(status): \(SecCopyErrorMessageString(status, nil) as String? ?? "unknown")"
+        }
+    }
+    var description: String { errorDescription ?? "Keychain error \(status)" }
 }
