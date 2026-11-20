@@ -256,7 +256,44 @@
   const hasValue = (el) => (el.tagName === "SELECT" ? el.selectedIndex > 0 && el.value !== "" : el.value !== "");
   const filledByUs = new WeakSet();   // fields Deadbolt filled: those may be overwritten by a second pick
 
-  const scopeFor = (field) => field.form || document;
+  const scopeFor = (field) => field.form || document;   // wide: only for deciding whether to offer a menu at all
+
+  /** The part of the page a pick should fill: grown outward from the field, stopping before it would take in a second field of the
+   *  same kind. A merchant's saved-cards list has a CVV box per card; picking a card there must fill only the box beside it. */
+  function pickScope(field, group) {
+    const key = FM.classify(field);
+    const limit = field.form || document.documentElement;
+    const all = FM.collect(limit, group, visible);
+    let best = field.parentElement || limit;
+    for (let el = field.parentElement; el; el = el.parentElement) {
+      if (all.filter((f) => f.key === key && el.contains(f.el)).length > 1) break;
+      best = el;
+      if (el === limit) break;
+    }
+    return best;
+  }
+
+  /** Still more than one box for the same thing (two address blocks, say): keep the one nearest the field the person is in. */
+  function onePerKey(targets, field) {
+    const at = targets.findIndex((t) => t.el === field);
+    const nearest = new Map();
+    targets.forEach((t, i) => {
+      const d = at < 0 ? i : Math.abs(i - at);
+      if (!nearest.has(t.key) || d < nearest.get(t.key).d) nearest.set(t.key, { t, d });
+    });
+    return targets.filter((t) => nearest.get(t.key).t === t);
+  }
+
+  /** The last four digits a saved-cards row shows next to the field ("****6847"), if the nearest part of the page that shows any
+   *  shows exactly one set. Several different ones means the box can't be matched to a card, so we don't guess. */
+  function last4Hint(field) {
+    for (let el = field.parentElement, i = 0; el && i < 8; el = el.parentElement, i++) {
+      const found = new Set([...(el.textContent || "").slice(0, 2000).matchAll(/(?:[*•x]{2,}|ending(?: in)?|last 4(?: digits)?:?)\s*(\d{4})(?!\d)/gi)].map((m) => m[1]));
+      if (found.size === 1) return [...found][0];
+      if (found.size > 1) return null;
+    }
+    return null;
+  }
 
   /** "card" or "identity" when this field sits in a form worth offering one for; otherwise null. */
   function fillGroupFor(field) {
@@ -288,7 +325,12 @@
     if (reply.error === "locked") {
       rows = `<button class="row" data-act="unlock"><div class="tile">🔒</div><div class="t"><b>Unlock Deadbolt</b><span>Touch ID on your Mac</span></div></button>`;
     } else if (reply.ok && reply.items.length) {
-      rows = reply.items.map((it) => `
+      // On a list of the merchant's own saved cards the row shows the last four digits: offer the card that matches.
+      let shown = reply.items;
+      const hint = group === "card" ? last4Hint(field) : null;
+      const same = hint ? shown.filter((it) => it.last4 === hint) : [];
+      if (same.length) shown = same;
+      rows = shown.map((it) => `
         <button class="row" data-pick="${esc(it.id)}" role="option">
           <div class="tile">${group === "card" ? "💳" : "👤"}</div>
           <div class="t"><b>${esc(it.title)}</b><span>${group === "card"
@@ -318,7 +360,7 @@
 
   /** Asks the Mac for what this form needs and writes it in. Skips fields the person already filled in. */
   async function fillWithItem(group, id, field) {
-    const targets = FM.collect(scopeFor(field), group, visible);
+    const targets = onePerKey(FM.collect(pickScope(field, group), group, visible), field);
     if (!targets.length) return flashWait("Nothing to fill here", location.hostname);
     const want = [...new Set(targets.flatMap((t) => FM.wanted(t.key, t.el)))];
     const timer = setTimeout(() => showWait(true, group === "card" ? "Fill card" : "Fill details", `Confirm on your Mac · ${location.hostname}`), 350);
@@ -546,8 +588,11 @@
       const group = msg.kind === "card" ? "card" : msg.kind === "identity" ? "identity" : null;
       const active = document.activeElement;
       const here = group && active && FM.classify(active) && FM.groupOf(FM.classify(active)) === group && visible(active) ? active : null;
-      const field = here || (group ? FM.collect(document, group, visible)[0]?.el : null);
+      const all = group ? FM.collect(document, group, visible) : [];
+      const field = here || all[0]?.el || null;
       if (!field) { sendResponse({ ok: false, error: "noFields" }); return; }
+      // Several boxes for the same thing (a CVV per saved card, two address blocks) and none focused: don't guess which.
+      if (!here && new Set(all.map((f) => f.key)).size !== all.length) { sendResponse({ ok: false, error: "ambiguous" }); return; }
       sendResponse({ ok: true });
       fillWithItem(group, String(msg.id || ""), field);
       return;

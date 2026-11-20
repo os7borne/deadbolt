@@ -99,7 +99,9 @@ async function renderItems() {
     const r = await new Promise((res) => chrome.tabs.sendMessage(tab.id, { type: "fillItemFromPopup", kind, id: b.dataset.fillitem },
       (x) => res(chrome.runtime.lastError ? { ok: false, error: "noPage" } : x)));
     if (r?.ok) return window.close();   // the page asks the Mac; Touch ID may take a moment
-    toast(r?.error === "noFields" ? `No ${kind} fields found on this page` : "Can’t fill on this page");
+    toast(r?.error === "noFields" ? `No ${kind} fields found on this page`
+        : r?.error === "ambiguous" ? "Several matching boxes. Click the one you want first, then press Fill."
+        : "Can’t fill on this page");
   });
 
   main.querySelectorAll("[data-more]").forEach((b) => b.onclick = () => {

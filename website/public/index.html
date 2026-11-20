@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deadbolt — a private password manager</title>
-<meta name="description" content="Deadbolt is a private password and passkey manager for your own devices. No account, no server copy, end-to-end encrypted sync.">
+<meta name="description" content="Deadbolt is a private password, passkey and card manager for your own iPhone, Mac and Chrome browser. No account, no server copy, end-to-end encrypted sync.">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0B0C0F">
 <link rel="icon" type="image/png" href="/favicon.png">
@@ -90,10 +90,126 @@ table.spec tr:last-child td,table.spec tr:last-child th{border-bottom:none}
 table.spec th{color:var(--text3);font-weight:500;width:34%;white-space:nowrap}
 
 /* platforms */
-.platform{display:flex;align-items:center;gap:16px}
-.platform .pill{margin-left:auto;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.platform{display:flex;flex-direction:column;align-items:flex-start;gap:14px}
+.platform .icon{flex:none}
+.platform p{margin-top:6px}
+.platform .pill{margin-top:auto;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
 .pill.building{background:var(--brass-wash);color:var(--brass)}
 .pill.planned{background:var(--control);color:var(--text2)}
+.pill.works{background:var(--good-wash);color:var(--good)}
+
+
+/* screens (drawn with sample data) */
+.shots{display:grid;gap:64px;margin-top:48px}
+figure.shot{margin:0}
+figure.shot figcaption{margin:18px auto 0;color:var(--text3);font-size:14px;text-align:center;max-width:680px}
+.sample{margin:36px 0 0;text-align:center;font-size:13px;color:var(--text3)}
+.shot svg{display:block}
+.shot .mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+
+.mac{display:grid;grid-template-columns:186px 278px 1fr;max-width:960px;min-height:410px;margin:0 auto;background:var(--ground);border:1px solid var(--line-strong);border-radius:16px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.55);font-size:12.5px;text-align:left;color:var(--text)}
+.mac .side{background:#0E0F12;border-right:1px solid #1C1F26;padding:14px 10px;display:flex;flex-direction:column;gap:2px}
+.lights{display:flex;gap:7px;padding:2px 6px 14px}
+.lights i{display:block;width:11px;height:11px;border-radius:50%}
+.lights i:nth-child(1){background:#ff5f57}.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+.mac .bd{display:flex;align-items:center;gap:8px;padding:0 8px 12px;font-weight:700;font-size:13px}
+.mac .bd img{width:18px;height:18px;border-radius:5px}
+.mac .st{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);padding:10px 8px 4px;font-weight:600}
+.mac .sr{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;color:#C9CCD2}
+.mac .sr.on{background:var(--control);color:var(--text);font-weight:600}
+.mac .sr svg{width:13px;height:13px;flex:none;color:var(--text2)}
+.mac .sr.on svg{color:var(--brass)}
+.mac .sr b{margin-left:auto;font-weight:400;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--text3)}
+.mac .col{border-right:1px solid #1C1F26;padding:8px}
+.mac .colh{display:flex;gap:8px;align-items:baseline;padding:6px 8px 10px;font-weight:600}
+.mac .colh b{font-weight:400;color:var(--text3);font-family:ui-monospace,Menlo,monospace;font-size:10.5px}
+.mac .mr{display:flex;gap:9px;align-items:center;padding:7px 8px;border-radius:8px}
+.mac .mr.on{background:var(--control);outline:1px solid #3A3220}
+.t2{width:26px;height:26px;border-radius:8px;background:var(--control);color:var(--brass);display:flex;align-items:center;justify-content:center;flex:none}
+.t2 svg{width:14px;height:14px}
+.mac .mr .tx{min-width:0;line-height:1.3}
+.mac .mr .tx b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mac .mr .tx span{color:var(--text2);font-size:11.5px;white-space:nowrap}
+.mac .detail{padding:22px 24px}
+.mac .dh{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+.mac .dh .t2{width:40px;height:40px;border-radius:11px}
+.mac .dh .t2 svg{width:20px;height:20px}
+.mac .dh b{display:block;font-size:16px}
+.mac .dh span{color:var(--text2);font-size:11.5px}
+.mac .fields{border:1px solid var(--line);border-radius:10px}
+.mac .f{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid #1C1F26}
+.mac .f:last-child{border-bottom:0}
+.mac .f label{width:92px;color:var(--text3);font-size:11.5px;flex:none}
+.mac .f .v{flex:1;min-width:0}
+.mac .f .v.m{font-family:ui-monospace,Menlo,monospace}
+.mac .ib{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--text2);flex:none}
+.mac .ib.hot{background:var(--brass-wash);color:var(--brass)}
+.mac .ib svg{width:12px;height:12px}
+.mac .note{margin:12px 2px 0;color:var(--text3);font-size:11.5px}
+@media (max-width:880px){.mac{grid-template-columns:172px 1fr}.mac .detail{display:none}.mac .col{border-right:0}}
+@media (max-width:560px){.mac{grid-template-columns:1fr}.mac .side{display:none}}
+
+.phones{display:flex;gap:30px;justify-content:center;flex-wrap:wrap}
+.phone{position:relative;width:272px;height:566px;border-radius:46px;border:9px solid #1a1c22;background:var(--ground);overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.55);text-align:left;font-size:12.5px;color:var(--text)}
+.phone .notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:84px;height:22px;border-radius:12px;background:#000}
+.phone .sb{display:flex;justify-content:space-between;padding:13px 26px 0;font-weight:600;font-size:12px}
+.phone .nb{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 0}
+.phone .rb{width:30px;height:30px;border-radius:50%;background:var(--control);display:flex;align-items:center;justify-content:center;color:var(--brass);font-size:13px}
+.phone .rb.txt{width:auto;padding:0 12px;border-radius:15px;font-size:12px;font-weight:600}
+.phone h4{margin:6px 16px 8px;font-size:25px;letter-spacing:-.02em}
+.phone .chips{display:flex;gap:6px;padding:0 16px 8px;overflow:hidden;white-space:nowrap}
+.phone .chips span{padding:5px 11px;border-radius:999px;border:1px solid var(--line);color:#C9CCD2;font-size:11.5px}
+.phone .chips span.on{background:var(--text);color:var(--ground);border-color:transparent;font-weight:600}
+.phone .li{display:flex;gap:11px;align-items:center;padding:8px 16px;border-top:1px solid var(--line)}
+.phone .li .tx{min-width:0;line-height:1.3;flex:1}
+.phone .li .tx b{display:block;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phone .li .tx span{color:var(--text2);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.phone .li .ch{color:var(--text3);font-size:14px}
+.site{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;color:#fff}
+.phone .tabs{position:absolute;left:12px;right:12px;bottom:14px;height:52px;border-radius:26px;background:#22252d;border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:space-around;font-size:9.5px;color:var(--text2)}
+.phone .tabs div{display:flex;flex-direction:column;align-items:center;gap:2px}
+.phone .tabs div.on{color:var(--brass)}
+.phone .tabs svg{width:16px;height:16px}
+.phone .big{display:flex;gap:12px;align-items:center;padding:6px 16px 12px}
+.phone .big .t2{width:46px;height:46px;border-radius:13px}
+.phone .big .t2 svg{width:22px;height:22px}
+.phone .big b{display:block;font-size:19px;line-height:1.15}
+.phone .big span{color:var(--text2);font-size:11.5px}
+.phone .cardbox{margin:0 14px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.phone .fr{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.phone .fr:last-child{border-bottom:0}
+.phone .fr .tx{flex:1;min-width:0;line-height:1.25}
+.phone .fr .tx span{display:block;color:var(--text3);font-size:10.5px}
+.phone .fr .tx b{display:block;font-weight:500;font-size:14px}
+.phone .fr .tx b.m{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;white-space:nowrap;letter-spacing:-.02em}
+.phone .rb2{width:30px;height:30px;border-radius:9px;background:var(--control);display:flex;align-items:center;justify-content:center;color:var(--text);flex:none}
+.phone .rb2.hot{background:var(--brass);color:var(--on-brass)}
+.phone .rb2 svg{width:14px;height:14px}
+
+.browser{max-width:780px;margin:0 auto;border:1px solid var(--line-strong);border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.55);text-align:left}
+.browser .bar{background:#1b1d22;padding:10px 12px;display:flex;gap:12px;align-items:center}
+.browser .url{flex:1;background:#2a2d34;border-radius:16px;padding:5px 14px;color:#c9ccd2;font-size:12px}
+.browser .ext{width:22px;height:22px;border-radius:6px;display:block}
+.browser .page{position:relative;background:#f3f4f6;padding:26px;min-height:470px;color:#111827}
+.browser .page h4{margin:0 0 4px;font-size:16px}
+.browser .page .sub2{margin:0 0 16px;color:#6b7280;font-size:12px}
+.browser .page label{display:block;font-size:11px;color:#6b7280;margin:0 0 4px}
+.browser .fld{background:#fff;border:1px solid #d5d8de;border-radius:8px;height:36px;padding:9px 10px;margin-bottom:10px;font-size:12.5px;color:#9ca3af;max-width:420px}
+.browser .fld.focus{border-color:#D4AF6A;box-shadow:0 0 0 3px rgba(212,175,106,.3)}
+.browser .pair{display:flex;gap:10px;max-width:420px}
+.browser .pair .fld{flex:1}
+.dmenu{position:absolute;left:26px;top:214px;width:318px;line-height:1.25;background:#111216;color:#F2F0EA;border:1px solid #2B2E36;border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.4);overflow:hidden;font-size:13px}
+.dmenu .hd{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #22252D;color:#A3A7B0;font-size:11.5px}
+.dmenu .hd img{width:16px;height:16px;border-radius:4px}
+.dmenu .hd .c{margin-left:auto;color:#8A8F99;font-size:10.5px;white-space:nowrap}
+.dmenu .lst{position:relative;height:184px;overflow:hidden}
+.dmenu .rw{display:flex;align-items:center;gap:10px;min-height:52px;padding:10px 12px}
+.dmenu .rw:hover{background:#1F2229}
+.dmenu .rw .tl{width:26px;height:26px;border-radius:7px;background:#2A2F3A;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none}
+.dmenu .rw b{display:block;font-weight:600;font-size:13px}
+.dmenu .rw span{display:block;font-size:11.5px;color:#A3A7B0}
+.dmenu .sbar{position:absolute;right:3px;top:6px;width:4px;height:100px;border-radius:2px;background:#3A3E48}
+@media (max-width:520px){.dmenu{left:12px;right:12px;width:auto}.browser .page{padding:20px 12px}}
 
 /* faq */
 details{border-bottom:1px solid var(--line);padding:18px 0}
@@ -118,6 +234,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;
     </a>
     <nav class="links" aria-label="Sections">
       <a href="#features">Features</a>
+      <a href="#screens">Screens</a>
       <a href="#sync">Sync</a>
       <a href="#privacy">Privacy</a>
       <a href="#security">Security</a>
@@ -130,7 +247,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;
   <div class="hero wrap">
     <img class="mark" src="/logo.png" width="120" height="120" alt="Deadbolt logo: a padlock with a shield on a gold tile">
     <h1>Your passwords, behind <em>your own</em> lock.</h1>
-    <p class="lede">Deadbolt is a private password and passkey manager for your own iPhone and Mac. No account to create, no copy on anyone’s server — just your devices, encrypted, keeping each other in sync.</p>
+    <p class="lede">Deadbolt is a private password, passkey and card manager that works on your iPhone, your Mac and Chrome. No account to create, no copy on anyone’s server — just your devices, encrypted, keeping each other in sync.</p>
     <p class="status"><i aria-hidden="true"></i>A personal project in active development · not available for download</p>
   </div>
 
@@ -142,7 +259,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;
         <div class="card">
           <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="3"/><path d="M7 12h.01M11 12h.01M15 12h2"/></svg></div>
           <h3>Autofill everywhere</h3>
-          <p>Logins appear above the keyboard in Safari and apps on iPhone, and in the menu bar on Mac. Face ID or Touch ID confirms before anything is filled.</p>
+          <p>Logins appear above the keyboard in Safari and apps on iPhone, in the menu bar on Mac, and under the field in Chrome through an extension. Face ID or Touch ID confirms before anything sensitive is filled.</p>
         </div>
         <div class="card">
           <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></div>
@@ -157,7 +274,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;
         <div class="card">
           <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.4 3.4-5.5 6.5-5.5s5.7 2.1 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.6.9 2.6 2.6 3 5.2"/></svg></div>
           <h3>Many accounts per site</h3>
-          <p>Personal, work, a bot — each with its own password and passkey. Star the one you use most and it’s suggested first.</p>
+          <p>Personal, work, a bot — each with its own password and passkey. The one you used last is suggested first, three at a time, with a scroll for the rest.</p>
         </div>
         <div class="card">
           <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h6"/><path d="m17 14 3 3-3 3"/></svg></div>
@@ -165,11 +282,127 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;
           <p>Random passwords without look-alike characters, or memorable passphrases like <span class="mono">copper-lantern-orbit-maple-7</span>.</p>
         </div>
         <div class="card">
+          <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19M6 15h4"/></svg></div>
+          <h3>Cards, identities and notes</h3>
+          <p>Keep payment cards, addresses and secure notes beside your logins. Fill a checkout in Chrome in one click: a card number or security code always asks for Touch ID first, and says which site is getting it.</p>
+        </div>
+        <div class="card">
           <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></div>
           <h3>Careful with your clipboard</h3>
-          <p>Copied passwords stay on this device only and clear themselves after 60 seconds. Secrets are masked until you ask to see them.</p>
+          <p>Copied passwords stay on this device only and clear themselves after 60 seconds; card numbers and security codes after 30. Secrets are masked until you ask to see them.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+
+  <section id="screens">
+    <div class="wrap">
+      <p class="kicker">See it</p>
+      <h2>One vault, three places to use it.</h2>
+      <p class="sub">The Mac app, the iPhone app and the Chrome extension share the same encrypted vault. Everything below is drawn with sample data.</p>
+      <div class="shots">
+
+        <figure class="shot">
+          <div class="mac" role="img" aria-label="The Deadbolt Mac app: a sidebar with Library and item types, a list of saved cards, and the details of one card with its number and security code masked.">
+            <div class="side" aria-hidden="true">
+              <div class="lights"><i></i><i></i><i></i></div>
+              <div class="bd"><img src="/logo.png" alt="">Deadbolt</div>
+              <div class="st">Library</div>
+              <div class="sr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>All Items<b>31</b></div>
+              <div class="sr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg>Websites<b>18</b></div>
+              <div class="sr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3"/></svg>Passkeys<b>3</b></div>
+              <div class="sr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>One-Time Codes<b>6</b></div>
+              <div class="st">Item types</div>
+              <div class="sr on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19"/></svg>Cards<b>4</b></div>
+              <div class="sr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M6 16c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M15 9h3M15 13h3"/></svg>Identities<b>2</b></div>
+              <div class="sr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg>Secure Notes<b>3</b></div>
+            </div>
+            <div class="col" aria-hidden="true">
+              <div class="colh">Cards <b>4</b></div>
+              <div class="mr on"><div class="t2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19"/></svg></div><div class="tx"><b>Travel card</b><span>Visa •••• 4242 · 04/2028</span></div></div>
+              <div class="mr"><div class="t2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19"/></svg></div><div class="tx"><b>Everyday debit</b><span>Mastercard •••• 5100 · 09/2029</span></div></div>
+              <div class="mr"><div class="t2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19"/></svg></div><div class="tx"><b>Work card</b><span>American Express •••• 1005 · 12/2027</span></div></div>
+              <div class="mr"><div class="t2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19"/></svg></div><div class="tx"><b>Backup card</b><span>Visa •••• 1881 · 02/2030</span></div></div>
+            </div>
+            <div class="detail" aria-hidden="true">
+              <div class="dh"><div class="t2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19"/></svg></div><div><b>Travel card</b><span>Visa •••• 4242 · edited 2 days ago</span></div></div>
+              <div class="fields">
+                <div class="f"><label>Cardholder</label><div class="v">Alex Doe</div><div class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></div></div>
+                <div class="f"><label>Number</label><div class="v m">•••• •••• •••• 4242</div><div class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="ib hot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></div></div>
+                <div class="f"><label>Expires</label><div class="v m">04/2028</div><div class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></div></div>
+                <div class="f"><label>Security code</label><div class="v m">••••</div><div class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="ib hot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></div></div>
+                <div class="f"><label>Brand</label><div class="v">Visa</div></div>
+              </div>
+              <p class="note">Showing or copying a number or code asks for Touch ID, every time.</p>
+            </div>
+          </div>
+          <figcaption><b>On the Mac.</b> A menu-bar app and a window with a sidebar, resizable columns and one list for everything you keep.</figcaption>
+        </figure>
+
+        <figure class="shot">
+          <div class="phones">
+            <div class="phone" role="img" aria-label="The Deadbolt iPhone app: the Vault list with filter chips and a mix of logins, a card and a secure note.">
+              <div class="notch"></div>
+              <div class="sb" aria-hidden="true"><span>9:41</span><span>5G ▮</span></div>
+              <div aria-hidden="true">
+                <div class="nb"><div class="rb">🔒</div><div class="rb txt">✦ &nbsp;+</div></div>
+                <h4>Vault</h4>
+                <div class="chips"><span class="on">All</span><span>Websites 18</span><span>Passkeys 3</span><span>Cards 4</span></div>
+                <div class="li"><div class="site" style="background:#24292f">G</div><div class="tx"><b>github.com</b><span>alex@example.com</span></div><span class="ch">›</span></div>
+                <div class="li"><div class="t2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19"/></svg></div><div class="tx"><b>Travel card</b><span>Visa •••• 4242 · 04/2028</span></div><span class="ch">›</span></div>
+                <div class="li"><div class="site" style="background:#0b6b4b">N</div><div class="tx"><b>notion.so</b><span>alex@example.com</span></div><span class="ch">›</span></div>
+                <div class="li"><div class="t2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M6 16c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M15 9h3M15 13h3"/></svg></div><div class="tx"><b>Home</b><span>Alex Doe</span></div><span class="ch">›</span></div>
+                <div class="li"><div class="site" style="background:#5b3fd1">S</div><div class="tx"><b>stripe.com</b><span>alex@example.com</span></div><span class="ch">›</span></div>
+                <div class="li"><div class="t2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg></div><div class="tx"><b>Wi-Fi</b><span>Secure note</span></div><span class="ch">›</span></div>
+                <div class="tabs"><div class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Vault</div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Codes</div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="6" width="12" height="9" rx="1.5"/><rect x="16" y="9" width="5" height="10" rx="1.5"/></svg>Devices</div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Settings</div></div>
+              </div>
+            </div>
+            <div class="phone" role="img" aria-label="A card in the Deadbolt iPhone app, with the number and security code masked and copy buttons.">
+              <div class="notch"></div>
+              <div class="sb" aria-hidden="true"><span>9:41</span><span>5G ▮</span></div>
+              <div aria-hidden="true">
+                <div class="nb"><div class="rb">‹</div><div class="rb txt">Edit</div></div>
+                <div class="big" style="margin-top:12px"><div class="t2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19"/></svg></div><div><b>Travel card</b><span>Visa •••• 4242</span></div></div>
+                <div class="cardbox">
+                  <div class="fr"><div class="tx"><span>Cardholder</span><b>Alex Doe</b></div><div class="rb2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></div></div>
+                  <div class="fr"><div class="tx"><span>Number</span><b class="m">•••• •••• •••• 4242</b></div><div class="rb2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="rb2 hot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></div></div>
+                  <div class="fr"><div class="tx"><span>Expires</span><b class="m">04/2028</b></div><div class="rb2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></div></div>
+                  <div class="fr"><div class="tx"><span>Security code</span><b class="m">••••</b></div><div class="rb2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="rb2 hot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></div></div>
+                  <div class="fr"><div class="tx"><span>Brand</span><b>Visa</b></div></div>
+                </div>
+                <p style="text-align:center;color:#F28B82;margin:22px 0 0;font-size:13px">Delete card</p>
+              </div>
+            </div>
+          </div>
+          <figcaption><b>On iPhone.</b> Face ID before a number, a code or an ID number is shown or copied. System AutoFill fills logins in Safari and apps.</figcaption>
+        </figure>
+
+        <figure class="shot">
+          <div class="browser" role="img" aria-label="A checkout page in Chrome with a Deadbolt suggestion list under the card number field, showing three saved cards and part of a fourth.">
+            <div class="bar" aria-hidden="true"><div class="lights" style="padding:0"><i></i><i></i><i></i></div><div class="url">🔒 shop.example.com/checkout</div><img class="ext" src="/favicon.png" alt=""></div>
+            <div class="page" aria-hidden="true">
+              <h4>Payment</h4><p class="sub2">Pay for your order of 2 items</p>
+              <label>Name on card</label><div class="fld">Name on card</div>
+              <label>Card number</label><div class="fld focus">1234 5678 9012 3456</div>
+              <div class="pair"><div><label>Expiry</label><div class="fld">MM / YY</div></div><div><label>Security code</label><div class="fld">CVC</div></div></div>
+              <div class="dmenu">
+                <div class="hd"><img src="/favicon.png" alt="">Deadbolt · Cards · shop.example.com<span class="c">4 · scroll</span></div>
+                <div class="lst">
+                  <div class="rw"><div class="tl">💳</div><div><b>Travel card</b><span>Visa •••• 4242 · 04/2028</span></div></div>
+                  <div class="rw"><div class="tl">💳</div><div><b>Everyday debit</b><span>Mastercard •••• 5100 · 09/2029</span></div></div>
+                  <div class="rw"><div class="tl">💳</div><div><b>Work card</b><span>American Express •••• 1005 · 12/2027</span></div></div>
+                  <div class="rw"><div class="tl">💳</div><div><b>Backup card</b><span>Visa •••• 1881 · 02/2030</span></div></div>
+                  <div class="sbar"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <figcaption><b>In Chrome.</b> The extension suggests a card under the field, most recently used first, three at a time. Picking one asks for Touch ID on your Mac, which names the site that will receive it.</figcaption>
+        </figure>
+
+      </div>
+      <p class="sample">Illustrations drawn with sample data. No real vault is shown.</p>
     </div>
   </section>
 
@@ -250,22 +483,23 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;
   <section id="platforms">
     <div class="wrap">
       <p class="kicker">Platforms</p>
-      <h2>Built for the devices it runs on.</h2>
+      <h2>Built for the devices it runs on, and working on all three.</h2>
+      <p class="sub">iPhone, Mac and Chrome use the same vault and stay in sync. Deadbolt is built natively for Apple devices, and reaches the browser through an extension.</p>
       <div class="grid">
         <div class="card platform">
           <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></div>
-          <div><h3 style="margin:0">iPhone</h3><p>App + system AutoFill, iOS 18 and later</p></div>
-          <span class="pill building">In development</span>
+          <div><h3 style="margin:0">iPhone</h3><p>App with system AutoFill in Safari and apps · iOS 18 and later</p></div>
+          <span class="pill works">Built and working</span>
         </div>
         <div class="card platform">
           <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M2 19h20"/></svg></div>
-          <div><h3 style="margin:0">Mac</h3><p>Menu-bar app, macOS 15 and later</p></div>
-          <span class="pill building">In development</span>
+          <div><h3 style="margin:0">macOS</h3><p>Menu-bar app and vault window with Touch ID · macOS 15 and later</p></div>
+          <span class="pill works">Built and working</span>
         </div>
         <div class="card platform">
           <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg></div>
-          <div><h3 style="margin:0">Chrome on Mac</h3><p>Extension that unlocks through the Mac app</p></div>
-          <span class="pill building">In development</span>
+          <div><h3 style="margin:0">Chrome and Chromium browsers</h3><p>An extension that fills logins, cards and addresses and unlocks through the Mac app. Nothing is stored in the browser.</p></div>
+          <span class="pill works">Built and working</span>
         </div>
       </div>
     </div>
@@ -286,6 +520,10 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;
       <details>
         <summary>What if I lose every device?</summary>
         <p>Use your Recovery Kit with one of your encrypted backup files. Keep the printed kit somewhere safe and away from your devices.</p>
+      </details>
+      <details>
+        <summary>Which devices and browsers does it work on?</summary>
+        <p>iPhone (iOS 18 and later), Mac (macOS 15 and later), and Chrome or another Chromium browser on the Mac through an extension. The extension doesn’t keep anything itself: it asks the Mac app, which unlocks with Touch ID and locks again.</p>
       </details>
       <details>
         <summary>Can I download it?</summary>

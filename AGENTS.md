@@ -149,7 +149,7 @@ deadbolt/
   chrome/              Chrome MV3 extension (no build). Load unpacked; id lhalfpljkecpmpgcfibbaeldddnekdfa
   relay/               Cloudflare Worker + SQLite Durable Objects: sync dead-drop + link rooms (see header of src/index.js). Domain deadbolt-relay.osborne.vc
   website/public/lab/  test lab, live at https://deadbolt.osborne.vc/lab/ (noindex, static, data only in localStorage): 11 scenarios — classic form, script sign-in, icon-only button, two-step, other-subdomain redirect (served from lab-login.osborne.vc, a second custom domain on deadbolt-site), change password, hidden-field trap, iframe; one-time codes (QR + key + otpauth link, RFC 6238 checked in-page); passkeys (every WebAuthn check + signature verified in-page); 11 single-page sign-in (slow, no navigation; save prompt must still appear). qrcode.js = vendored qrcode-generator 1.4.4 (MIT), so no third-party requests
-  website/             static info page, **live at https://deadbolt.osborne.vc** (Worker `deadbolt-site`, account Oz-Projects, static assets, custom domain). Redeploy: `cd website && npx wrangler@4 deploy`. No downloads
+  website/             static info page (2026-11-20: says Deadbolt is built and working on iPhone, macOS and Chrome/Chromium via an extension, and has a "See it" section whose screens are **HTML/CSS drawn with sample data**: never put real screenshots of the owner's vault on the site, they show names, emails and card endings), **live at https://deadbolt.osborne.vc** (Worker `deadbolt-site`, account Oz-Projects, static assets, custom domain). Redeploy: `cd website && npx wrangler@4 deploy`. No downloads
   spikes/              phase 0 throwaway experiments
   .agents/plans/       one NN-name.md per phase, with status/progress front matter
 ```

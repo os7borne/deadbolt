@@ -271,3 +271,12 @@ Cause: a race in `content.js`. When the Touch ID dialog closes Chrome refocuses 
 The unlock's own refresh then returned at once because "a menu is already open for this field". It affected the **login** menu as well as the card/identity menu.
 Fix: every menu request carries a sequence number (`menuSeq`, bumped by new requests and by `hideMenu`); an answer is used only if it is still the latest; the post-unlock refresh is `force`d. Regression test (scratch harness `test4.js`, 4 checks, fails on the old code, passes on the new): refocus during unlock, delayed "locked" reply, then the fresh list must win, for cards and logins.
 Chrome only needs the extension reloaded (no Mac reinstall). The Safari copy inside the Mac app is regenerated but only ships with the next Mac build.
+
+## 17. Fill went into every CVV box on a saved-cards list (fixed 2026-11-20, extension 0.5.3)
+
+Owner report with screenshot: a merchant checkout listing the shopper's saved cards (****6847, ****4165, …), each with its own CVV box. Picking a card from Deadbolt's menu in one CVV box filled **all** of them.
+Cause: a pick filled every field of the card group found in the whole form/page, so a page with several boxes for the same thing got all of them. Same flaw for billing + shipping name/address blocks.
+Fix (`content.js`): `pickScope` grows outward from the focused field and stops before it would include a second field of the same kind; `onePerKey` keeps the nearest box if duplicates remain; the Mac is asked only for the keys that scope needs (a CVV-only row asks for `code` only);
+`last4Hint` reads "****4165" from the nearest part of the page and the menu then offers just the matching card (all cards if none matches or the page shows several); the popup's Fill on a page with several identical boxes and nothing focused says "click the one you want first".
+Tests: scratch harness `test5.js` (10 checks, 6 fail on the old code). Total across the five scratch suites: 92.
+Reload the extension (0.5.3); no Mac reinstall needed. Safari's copy is regenerated and ships with the next Mac build.
