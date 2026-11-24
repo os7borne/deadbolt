@@ -109,6 +109,7 @@ private struct MacGeneralSettings: View {
                 Toggle("Show website icons", isOn: $showIcons).toggleStyle(.checkbox)
                 MacFormNote("Fetched through Deadbolt’s own server, never a third party. Off means no requests.")
             }
+            UpdatesRows()
             MacFormDivider()
             MacFormRow("Import") {
                 Button("Import Passwords…") { importing = true }.buttonStyle(MacButtonStyle())

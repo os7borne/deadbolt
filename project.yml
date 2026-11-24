@@ -9,11 +9,14 @@ options:
 packages:
   DeadboltCore:
     path: Core
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.0
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "0.1.2"
+    CURRENT_PROJECT_VERSION: "3"
     DEVELOPMENT_TEAM: 4CMN2DUGUL
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
@@ -150,6 +153,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.osborne.deadbolt.autofill
+        ENABLE_HARDENED_RUNTIME: YES
 
   DeadboltSafari:
     type: app-extension
@@ -176,6 +180,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.osborne.deadbolt.safari
+        ENABLE_HARDENED_RUNTIME: YES
 
   DeadboltMac:
     type: application
@@ -183,6 +188,7 @@ targets:
     sources: [Apps/Shared, Apps/macOS]
     dependencies:
       - package: DeadboltCore
+      - package: Sparkle
       - target: DeadboltMacAutoFill
         embed: true
       - target: DeadboltSafari
@@ -212,6 +218,10 @@ targets:
           - /Library/Application Support/Yab/Chromium/NativeMessagingHosts/
           - /Library/Application Support/Aside/NativeMessagingHosts/
           - /Library/Application Support/com.ardia.browser/Chromium/NativeMessagingHosts/
+        # Sparkle (self-updates): a sandboxed app can't replace itself, so it talks to Sparkle's installer and status XPC services.
+        com.apple.security.temporary-exception.mach-lookup.global-name:
+          - $(PRODUCT_BUNDLE_IDENTIFIER)-spks
+          - $(PRODUCT_BUNDLE_IDENTIFIER)-spki
         com.apple.security.network.client: true
         com.apple.security.files.user-selected.read-write: true
         com.apple.security.files.bookmarks.app-scope: true
@@ -226,8 +236,18 @@ targets:
         NSFaceIDUsageDescription: Unlock your Deadbolt vault.
         DeadboltKeychainGroup: $(DEVELOPMENT_TEAM).com.osborne.deadbolt.shared
         LSApplicationCategoryType: public.app-category.utilities
+        # Sparkle: EdDSA-signed zips from the website, checked hourly, installed at a quiet moment (Settings › General › Updates).
+        # The private key is in the owner's login Keychain (account "deadbolt"); see scripts/release-mac.sh.
+        SUFeedURL: https://deadbolt.osborne.vc/updates/appcast.xml
+        SUPublicEDKey: ewsqbiqfP/23fu5OKPNNp9tR8O2T1Vd7AW8cfe5XEHA=
+        SUEnableAutomaticChecks: true
+        SUAutomaticallyUpdate: true
+        SUScheduledCheckInterval: 3600
+        SUEnableInstallerLauncherService: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.osborne.deadbolt
+        ENABLE_HARDENED_RUNTIME: YES
         PRODUCT_NAME: Deadbolt
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) DIRECT_DISTRIBUTION"

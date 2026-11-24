@@ -303,7 +303,9 @@ private struct ChooseLoginView: View {
         }
         ForEach(Array(logins.enumerated()), id: \.element.id) { i, l in
             if i > 0 || !passkeys.isEmpty { CardDivider() }
-            row(title: l.username, detail: l.label.map { "\($0) · \(l.sites.first ?? "")" } ?? "Password · \(l.sites.first ?? "")",
+            row(title: l.customName ?? l.username,
+                detail: l.customName != nil ? "\(l.username) · \(l.sites.first ?? "")"
+                    : (l.label.map { "\($0) · \(l.sites.first ?? "")" } ?? "Password · \(l.sites.first ?? "")"),
                 passkey: false, best: passkeys.isEmpty && i == 0 && l.preferred) {
                 // Filling a login saved for another site is how phishing works: ask first, naming both sites.
                 if !hosts.isEmpty, !hosts.contains(where: { h in l.sites.contains { Site.host(h, isCoveredBy: $0) } }) {

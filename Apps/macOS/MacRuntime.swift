@@ -8,6 +8,9 @@ import Foundation
 final class MacRuntime {
     static let shared = MacRuntime()
 
+    /// Opens (or reopens) the main window. Set by the SwiftUI scene at launch; the browser bridge calls it for "Open Deadbolt".
+    static var openMainWindow: (@MainActor () -> Void)?
+
     let session: VaultSession
     private(set) var bridge: BridgeServer!
     private var idleTimer: Timer?
@@ -22,6 +25,7 @@ final class MacRuntime {
         watchSystem()
         startIdleTimer()
         watchActivity()
+        AppUpdater.shared.start()   // Sparkle: checks hourly, installs at a quiet moment (no-op in builds without an updater)
     }
 
     /// Typing and clicking in Deadbolt's own windows count as use. Without this, filling in a long form never reset the idle timer,

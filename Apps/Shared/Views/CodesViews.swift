@@ -22,6 +22,7 @@ struct AuthBadges: View {
     var body: some View {
         HStack(spacing: 8) {
             if !login.password.isEmpty { badge("ellipsis.rectangle", "Password", DB.text2) }
+            if login.isPasswordless { badge("envelope", "No password: signs in by email link or code", DB.text2) }
             if !login.passkeyIDs.isEmpty { badge("person.badge.key", "Passkey", DB.brass) }
             if login.totpSecret != nil { badge("clock", "One-time code", DB.text2) }
         }

@@ -9,3 +9,6 @@ node_modules/
 .wrangler/
 .dev.vars
 *.p8
+
+# Sparkle update zips: built and deployed from the owner's Mac by scripts/release-mac.sh
+website/public/updates/*.zip

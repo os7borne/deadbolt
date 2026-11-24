@@ -595,6 +595,10 @@ struct MacLoginDetail: View {
                             icon("doc.on.doc", "Copy username") { copy(login.username, "Username copied") }
                         }
                     }
+                    if login.isPasswordless {
+                        divider
+                        field("Password") { Text("None. Signs in with an emailed link or code").foregroundStyle(DB.text3); Spacer() }
+                    }
                     if !login.password.isEmpty {
                         divider
                         field("Password") {
@@ -838,6 +842,12 @@ struct MacEditSheet: View {
                 Text(form.original.map { "Edit \($0.title)" } ?? "New Login").font(.db(15, .semibold))
             }
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 9) {
+                if !form.allowsCodeOnly {
+                    row("Name") {
+                        TextField(form.namePlaceholder, text: $form.name).macField()
+                        note("Optional. Your own name for this login, shown in lists and AutoFill.")
+                    }
+                }
                 row("Website") {
                     TextField("github.com", text: $form.site).macField().focused($focus, equals: .site)
                     if let h = form.siteHint { note(h.text, color: h.ok ? DB.text3 : DB.danger) }
@@ -846,7 +856,7 @@ struct MacEditSheet: View {
                 row("Password") {
                     HStack(spacing: 6) {
                         Group {
-                            if revealed { TextField("Password", text: $form.password) } else { SecureField("Password", text: $form.password) }
+                            if revealed { TextField("Optional", text: $form.password) } else { SecureField("Optional", text: $form.password) }
                         }
                         .font(.dbMono(12.5)).macField().focused($focus, equals: .password)
                         Button { revealed.toggle() } label: { Image(systemName: revealed ? "eye.slash" : "eye").frame(width: 14) }
@@ -861,7 +871,7 @@ struct MacEditSheet: View {
                             }
                             note(form.passwordChanged ? "\(s.text) · the current password moves to history when you save" : s.text)
                         }
-                    }
+                    } else if let h = form.noPasswordHint { note(h) }
                 }
                 row("One-time code") {
                     if let code = form.code {

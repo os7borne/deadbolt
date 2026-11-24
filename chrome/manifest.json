@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Deadbolt",
-  "version": "0.5.3",
+  "version": "0.6.1",
   "description": "Fill and save passwords from Deadbolt for Mac. Nothing is stored in Chrome.",
   "minimum_chrome_version": "120",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAp5ZUATNIsBbf9LMrqSse4x2LVnoMHdvOPSBSQS+ifXYiVPIwKVlLylobF30CeVXUt8INXBboiHjJl0odsOaUJ6VUP64Gu27eyRVu5kw4LIFVvK3CJHIxw+3K/HzdaDWQgB9QOfLGJtDymbBCXMpQYicH68w+9NZjMRmM1npTvd1/aqG4nCno0O9ePzU/+1pQTPw0ZcKxGG6kscjmkkVTg/1b9CbMOx2ND51YZ+aHXMerm4La8DsIxm4SeQB6zQf05qG+bva5OQdp72VPiqRnW8nRSAHkuwudC7l335vFrzdSfsFL2wiFSeQQxNgO5Qmk9Ke0Oc9SrNLYdkkxdPaAuQIDAQAB",

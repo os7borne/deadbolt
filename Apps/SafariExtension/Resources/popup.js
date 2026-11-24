@@ -121,6 +121,79 @@ async function renderItems() {
   });
 }
 
+// ---------- Add login: a form that starts from the page you are on ----------
+
+const addButton = (host) => `<button class="addBtn" id="addLogin" type="button">＋ Add a login${host ? ` for ${esc(host)}` : ""}</button>`;
+function wireAdd() { const b = $("addLogin"); if (b) b.onclick = renderAdd; }
+
+/** The website starts as this tab's address (main domain suggested by Deadbolt for Mac). The person can edit it. The password is
+ *  optional: sites that sign in with an emailed link or code have none. */
+async function renderAdd() {
+  clearInterval(render.timer);
+  $("tabs").hidden = true;
+  const main = $("main");
+  let host = "";
+  try { const u = new URL(tab.url); if (/^https?:$/.test(u.protocol)) host = u.hostname.replace(/^www\./, ""); } catch {}
+  let suggested = host;
+  if (host) { const s = await send({ type: "siteFor", site: host }); if (s.ok && s.suggested) suggested = s.suggested; }
+
+  main.innerHTML = `
+    <form id="addForm" class="add" autocomplete="off" novalidate>
+      <label>Website<input id="addSite" value="${esc(suggested)}" placeholder="github.com" spellcheck="false" autocapitalize="off" autocorrect="off"></label>
+      <p class="sub" id="siteHint"></p>
+      <label>Username or email<input id="addUser" type="text" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"></label>
+      <label>Password (optional)
+        <span class="pw"><input id="addPass" type="password" autocomplete="off" spellcheck="false">
+          <button class="ghost" id="showPass" type="button" aria-pressed="false">Show</button>
+          <button class="ghost" id="genPass" type="button">Generate</button></span></label>
+      <p class="sub">Leave the password empty for sites that email you a sign-in link or code.</p>
+      <p class="sub err" id="addMsg" role="alert" hidden></p>
+      <div class="btns"><button class="fill" type="submit" id="addSave">Save login</button><button class="ghost" type="button" id="addCancel">Cancel</button></div>
+    </form>`;
+
+  const msg = (t) => { $("addMsg").textContent = t || ""; $("addMsg").hidden = !t; };
+  const hint = () => {
+    const v = $("addSite").value.trim();
+    const el = $("siteHint");
+    if (!v) { el.textContent = ""; return; }
+    const h = v.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[\/?#]/)[0];
+    el.innerHTML = `Fills on ${esc(h)} and its subdomains${host && host !== h && host.endsWith("." + h) ? ` · <button class="link" type="button" id="useHost">Only on ${esc(host)}</button>` : ""}`;
+    const u = $("useHost"); if (u) u.onclick = () => { $("addSite").value = host; hint(); };
+  };
+  hint();
+  $("addSite").oninput = hint;
+  $("addCancel").onclick = render;
+  $("showPass").onclick = () => {
+    const show = $("addPass").type === "password";
+    $("addPass").type = show ? "text" : "password";
+    $("showPass").textContent = show ? "Hide" : "Show";
+    $("showPass").setAttribute("aria-pressed", String(show));
+  };
+  $("genPass").onclick = async () => {
+    const g = await send({ type: "generate" });
+    if (!g.ok) return msg("Couldn’t generate a password");
+    $("addPass").value = g.password; $("addPass").type = "text"; $("showPass").textContent = "Hide";
+  };
+  $("addForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const site = $("addSite").value.trim(), username = $("addUser").value.trim(), password = $("addPass").value;
+    if (!site) { msg("Add the website"); $("addSite").focus(); return; }
+    if (!username) { msg("Add a username or email"); $("addUser").focus(); return; }
+    msg("");
+    $("addSave").disabled = true; $("addSave").textContent = "Saving…";
+    const r = await send({ type: "addLogin", site, username, password, url: tab.url, tabId: tab.id });
+    if (r.ok) {
+      toast(r.result === "exists" ? "Already saved" : r.result === "updated" ? "Password updated" : "Login saved");
+      mode = "site";
+      return render();
+    }
+    $("addSave").disabled = false; $("addSave").textContent = "Save login";
+    if (r.error === "locked") return render();   // shows "Unlock with Touch ID"
+    msg(r.error === "badSite" ? "Enter a website like github.com" : r.error === "noHost" || r.error === "notRunning" ? "Deadbolt for Mac isn’t reachable" : "Couldn’t save. Open Deadbolt and try again.");
+  };
+  (host ? $("addUser") : $("addSite")).focus();
+}
+
 async function render() {
   clearInterval(render.timer);
   $("tabs").hidden = true;
@@ -151,6 +224,7 @@ async function render() {
     return;
   }
   setStatus("Unlocked via Mac", "#6FCF97");
+  send({ type: "badgeNow", tabId: tab.id, url: tab.url });   // bring this tab's account count back if it was cleared while locked
   drawTabs();
   if (mode !== "site") return renderItems();
 
@@ -159,7 +233,11 @@ async function render() {
     main.innerHTML = `<p class="empty">${r.error === "insecurePage" ? "Deadbolt only fills on secure (https) pages." : "Nothing to fill on this page."}</p>`;
     return;
   }
-  if (!r.accounts.length) { main.innerHTML = `<p class="empty">No logins saved for ${esc(r.site)}.</p>`; return; }
+  if (!r.accounts.length) {
+    main.innerHTML = `<p class="empty">No logins saved for ${esc(r.site)}.</p>${addButton(host)}`;
+    wireAdd();
+    return;
+  }
   // Chrome's own stored favicon for this page: no network request, nothing leaves the browser.
   // Chrome only (Safari has no _favicon): letters otherwise.
   const chromeFav = /Chrome\/|Chromium\//.test(navigator.userAgent);
@@ -168,29 +246,31 @@ async function render() {
                           : `<div class="tile">${esc((a.username || a.title || "?")[0].toUpperCase())}</div>`;
 
   // Logins and codes are separate lists: a row is either something to sign in with or a code to copy.
-  const logins = r.accounts.filter((a) => a.hasPassword || a.hasPasskey);
+  const logins = r.accounts.filter((a) => a.hasPassword || a.hasPasskey || a.passwordless);
   const codes = r.accounts.filter((a) => a.hasCode);
   main.innerHTML = [
     logins.length ? `<h2>Logins</h2>` + logins.map((a) => `
       <div class="item">
         <div class="row">
           ${tile(a)}
-          <div class="t"><b title="${esc(a.username || a.title)}">${esc(a.username || a.title)}</b><span>${esc(a.label || (a.hasPassword ? "Password" : "Passkey"))}</span></div>
+          <div class="t"><b title="${esc(a.name || a.username || a.title)}">${esc(a.name || a.username || a.title)}</b><span>${esc(a.name ? [a.username, a.label].filter(Boolean).join(" · ") : (a.label || (a.hasPassword ? "Password" : a.passwordless ? "No password" : "Passkey")))}</span></div>
           ${a.hasPassword ? `<button class="fill" data-fill="${esc(a.id)}">Fill</button>` : ""}
-          ${a.hasPassword ? `<button class="more" data-more="${esc(a.id)}" aria-label="More for ${esc(a.username || a.title)}" aria-expanded="false">⋯</button>` : ""}
+          ${a.hasPassword || a.passwordless ? `<button class="more" data-more="${esc(a.id)}" aria-label="More for ${esc(a.username || a.title)}" aria-expanded="false">⋯</button>` : ""}
         </div>
         <div class="menu" data-menu="${esc(a.id)}" hidden>
-          <button class="ghost" data-copy="${esc(a.id)}">Copy password</button>
+          ${a.hasPassword ? `<button class="ghost" data-copy="${esc(a.id)}">Copy password</button>` : ""}
           ${a.username ? `<button class="ghost" data-user="${esc(a.username)}">Copy username</button>` : ""}
         </div>
       </div>`).join("") : "",
     codes.length ? `<h2>One-time codes</h2>` + codes.map((a) => `
       <button class="row codeRow" data-code="${esc(a.id)}" title="Copy code">
         ${tile(a)}
-        <div class="t"><b>${esc(a.username || a.title)}</b><span class="code" data-live="${esc(a.id)}">······</span></div>
+        <div class="t"><b>${esc(a.name || a.username || a.title)}</b><span class="code" data-live="${esc(a.id)}">······</span></div>
         <span class="ring" data-ring="${esc(a.id)}"></span>
       </button>`).join("") : "",
+    addButton(host),
   ].join("");
+  wireAdd();
 
   main.querySelectorAll("[data-fill]").forEach((b) => b.onclick = async () => {
     const c = await send({ type: "fill", id: b.dataset.fill, url: tab.url, tabId: tab.id });

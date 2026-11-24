@@ -446,6 +446,10 @@ struct LoginDetailView: View {
                                 Clipboard.copySecret(login.username)
                             }
                         }
+                        if login.isPasswordless {
+                            CardDivider()
+                            field("Password", "None. Signs in with an emailed link or code") { EmptyView() }
+                        }
                         if !login.password.isEmpty {
                         CardDivider()
                         field("Password", revealed ? login.password : String(repeating: "•", count: 16), mono: true) {
@@ -654,7 +658,7 @@ struct EditLoginView: View {
     @State private var showMore: Bool
     @State private var addingCode = false
     @FocusState private var focus: Field?
-    private enum Field { case site, user, password }
+    private enum Field { case name, site, user, password }
 
     init(original: LoginItem?, site: String = "") {
         let m = LoginFormModel(original: original, site: site)
@@ -669,6 +673,10 @@ struct EditLoginView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     VStack(alignment: .leading, spacing: 6) {
                         Card {
+                            if !form.allowsCodeOnly {
+                                row("Name") { TextField(form.namePlaceholder, text: $form.name).focused($focus, equals: .name).submitLabel(.next).onSubmit { focus = .site } }
+                                CardDivider()
+                            }
                             row("Website") {
                                 TextField("github.com", text: $form.site).textContentType(.URL).keyboardType(.URL)
                                     .focused($focus, equals: .site).submitLabel(.next).onSubmit { focus = .user }
@@ -681,7 +689,7 @@ struct EditLoginView: View {
                             CardDivider()
                             row("Password") {
                                 Group {
-                                    if revealed { TextField("Password", text: $form.password) } else { SecureField("Password", text: $form.password) }
+                                    if revealed { TextField("Optional", text: $form.password) } else { SecureField("Optional", text: $form.password) }
                                 }
                                 .font(.dbMono(16)).focused($focus, equals: .password)
                                 Button { revealed.toggle() } label: { Image(systemName: revealed ? "eye.slash" : "eye") }
@@ -796,6 +804,7 @@ struct EditLoginView: View {
                 }
                 .foregroundStyle(DB.text3)
             }
+            if form.password.isEmpty, let h = form.noPasswordHint { Text(h) }
             if let m = form.missing, form.site.isEmpty == false || form.username.isEmpty == false || form.password.isEmpty == false {
                 Text(m).foregroundStyle(DB.text3)
             }

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Invites — Deadbolt admin</title>
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" href="/favicon.png">
+<style>
+:root{--ground:#0B0C0F;--raised:#111216;--control:#1F2229;--line:#22252D;--line2:#2B2E36;--text:#F2F0EA;--text2:#A3A7B0;--text3:#8A8F99;--brass:#D4AF6A;--good:#6FCF97;--bad:#FF8C7E}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--text);font:15px/1.5 system-ui,-apple-system,sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:28px 20px 80px}
+h1{font-size:24px;margin:0 0 4px}
+.sub{color:var(--text3);margin:0 0 22px}
+button,input,textarea{font:inherit;color:var(--text)}
+button{cursor:pointer;border:1px solid var(--line2);background:transparent;border-radius:9px;padding:7px 12px}
+button:hover{background:var(--control)}
+button.p{background:var(--brass);color:#1A1408;border-color:transparent;font-weight:600}
+button.d{color:var(--bad)}
+input,textarea{background:var(--raised);border:1px solid var(--line2);border-radius:9px;padding:10px 12px;width:100%}
+.bar{display:flex;gap:10px;align-items:center;margin:0 0 16px;flex-wrap:wrap}
+.tabs{display:flex;gap:6px}
+.tabs button[aria-pressed=true]{background:var(--control);border-color:var(--brass)}
+.right{margin-left:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2)}
+td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.em{font-weight:600;word-break:break-all}
+.note{color:var(--text2);font-size:14px;margin-top:3px;max-width:420px}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--control);color:var(--text2);margin:0 4px 4px 0}
+.st-approved{color:var(--good)}.st-rejected{color:var(--text3)}.st-pending{color:var(--brass)}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.acts a{display:inline-block;border:1px solid var(--brass);color:var(--brass);border-radius:9px;padding:7px 12px;text-decoration:none}
+details{margin:26px 0 0;border:1px solid var(--line2);border-radius:12px;padding:14px 16px;background:var(--raised)}
+summary{cursor:pointer;font-weight:600}
+textarea{min-height:200px;margin:12px 0;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+.msg{min-height:1.4em;color:var(--text3);margin:6px 0}
+#login{max-width:380px;margin:90px auto}
+.empty{color:var(--text3);padding:28px 10px}
+.lk{color:var(--text3);font-size:13px;margin-top:4px}
+.fresh{margin:14px 0 0;padding:12px 14px;border:1px solid var(--good);border-radius:10px;background:#15301F;word-break:break-all;display:none}
+.fresh.show{display:block}
+.fresh b{color:var(--good)}
+.row2{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:end;margin:12px 0}
+.row2 label{display:grid;gap:5px;font-size:13px;color:var(--text3)}
+section.links h2{font-size:18px;margin:34px 0 4px}
+.warn{color:var(--bad);margin:0 0 14px}
+@media(max-width:700px){.row2{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){th:nth-child(3),td:nth-child(3){display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section id="login" hidden>
+    <h1>Deadbolt invites</h1>
+    <p class="sub">Admin key</p>
+    <form id="lf"><input type="password" id="key" autocomplete="current-password" autofocus aria-label="Admin key">
+      <p class="msg" id="lmsg" role="alert"></p><button class="p" type="submit">Sign in</button></form>
+  </section>
+
+  <section id="app" hidden>
+    <div class="bar"><div><h1>Invite requests</h1><p class="sub" id="counts"></p></div>
+      <div class="right"><button id="refresh">Refresh</button> <button id="out">Sign out</button></div></div>
+    <p class="warn" id="dmgwarn" hidden></p>
+    <div class="fresh" id="fresh" role="status"></div>
+    <div class="bar"><div class="tabs" id="tabs"></div></div>
+    <table><thead><tr><th>Request</th><th>Devices</th><th>When</th><th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+    <p class="empty" id="empty" hidden>Nothing here.</p>
+    <section class="links">
+      <h2>Download links</h2>
+      <p class="sub" style="margin:0" id="dmginfo"></p>
+      <div class="row2">
+        <label>Label (who it’s for)<input id="ll" maxlength="80" placeholder="Chrome Web Store reviewer"></label>
+        <label>Days valid<input id="ld" type="number" min="1" max="60" value="30"></label>
+        <label>Downloads allowed<input id="lm" type="number" min="1" max="100" value="20"></label>
+        <button class="p" id="lmk">Create link</button>
+      </div>
+      <table><tbody id="lrows"></tbody></table>
+    </section>
+    <details id="tpl"><summary>Reply email (used by “Write reply”)</summary>
+      <p class="sub" style="margin:8px 0 0">Use <code>{{mac_link}}</code> where the personal Mac download link should go; put the TestFlight and Chrome links in as plain text. “Write reply” opens your mail app with this text; nothing is sent automatically.</p>
+      <textarea id="tt" maxlength="4000"></textarea>
+      <button class="p" id="save">Save reply</button> <span class="msg" id="tmsg"></span></details>
+  </section>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+const H = { "content-type": "application/json", "x-requested-with": "deadbolt-admin" };
+const DEFAULT = `Hi,
+
+Thanks for asking for a Deadbolt invite. Here is how to get started:
+
+iPhone (TestFlight):
+Mac (your personal link, valid for a week): {{mac_link}}
+Chrome extension:
+
+Deadbolt is early software. Please keep your Recovery Kit somewhere safe, and write back if anything is confusing.
+
+Osborne`;
+let all = [], links = [], dmg = null, filter = "pending", template = DEFAULT;
+const fresh = {};   // request id -> the full download URL, known only right after it was made (the server keeps just a hash)
+const left = (ms) => { const d = (ms - Date.now()) / 86400000; return d <= 0 ? "expired" : d < 1 ? "<1 day left" : Math.ceil(d) + " day" + (Math.ceil(d) === 1 ? "" : "s") + " left"; };
+const active = (l) => !l.revoked && l.expires_at > Date.now() && l.downloads < l.max_downloads;
+function showFresh(msg, url) {
+  const box = $("fresh"); box.replaceChildren(); box.classList.add("show");
+  const b = document.createElement("b"); b.textContent = msg + " "; box.append(b, document.createTextNode(url + " "));
+  const c = document.createElement("button"); c.textContent = "Copy"; c.onclick = () => navigator.clipboard.writeText(url).then(() => (c.textContent = "Copied")); box.append(c);
+}
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { credentials: "same-origin", ...opts, headers: { ...H, ...(opts.headers || {}) } });
+  if (r.status === 401 && path !== "/api/admin/login") { show(false); throw new Error("signed out"); }
+  return r;
+}
+function show(authed) { $("login").hidden = authed; $("app").hidden = !authed; if (!authed) $("key").focus(); }
+const ago = (ms) => { const s = (Date.now() - ms) / 1000; return s < 3600 ? Math.max(1, Math.round(s / 60)) + " min ago" : s < 172800 ? Math.round(s / 3600) + " h ago" : Math.round(s / 86400) + " days ago"; };
+const NAMES = { iphone: "iPhone", mac: "Mac", chrome: "Chrome" };
+
+function draw() {
+  const n = (s) => all.filter((r) => r.status === s).length;
+  $("counts").textContent = `${n("pending")} waiting · ${n("approved")} approved · ${n("rejected")} rejected`;
+  $("tabs").replaceChildren(...["pending", "approved", "rejected", "all"].map((f) => {
+    const b = document.createElement("button"); b.textContent = f[0].toUpperCase() + f.slice(1); b.setAttribute("aria-pressed", String(f === filter));
+    b.onclick = () => { filter = f; draw(); }; return b; }));
+  const rows = all.filter((r) => filter === "all" || r.status === filter);
+  $("empty").hidden = rows.length > 0;
+  $("rows").replaceChildren(...rows.map((r) => {
+    const tr = document.createElement("tr");
+    const c1 = document.createElement("td"); const em = document.createElement("div"); em.className = "em"; em.textContent = r.email; c1.append(em);
+    if (r.note) { const n = document.createElement("div"); n.className = "note"; n.textContent = r.note; c1.append(n); }
+    const c2 = document.createElement("td");
+    r.platforms.split(",").forEach((p) => { const t = document.createElement("span"); t.className = "tag"; t.textContent = NAMES[p] || p; c2.append(t); });
+    const c3 = document.createElement("td"); c3.textContent = ago(r.created_at);
+    const mine = links.filter((l) => l.request_id === r.id);
+    const live = mine.find(active);
+    const c4 = document.createElement("td"); c4.className = "st-" + r.status; c4.textContent = r.status;
+    if (r.status === "approved") {
+      const info = document.createElement("div"); info.className = "lk";
+      info.textContent = live ? `Mac link: ${left(live.expires_at)} · ${live.downloads}/${live.max_downloads} used` : (mine.length ? "Mac link ended" : "No Mac link");
+      c4.append(info);
+    }
+    const c5 = document.createElement("td"); const acts = document.createElement("div"); acts.className = "acts";
+    const btn = (label, cls, fn) => { const b = document.createElement("button"); b.textContent = label; if (cls) b.className = cls; b.onclick = fn; acts.append(b); };
+    if (r.status !== "approved") btn("Approve", "p", () => act(r, "approve"));
+    if (r.status === "approved") {
+      if (fresh[r.id]) {
+        const a = document.createElement("a"); a.textContent = "Write reply";
+        a.href = "mailto:" + encodeURI(r.email) + "?subject=" + encodeURIComponent("Your Deadbolt invite") + "&body=" + encodeURIComponent(template.replaceAll("{{mac_link}}", fresh[r.id]));
+        acts.append(a);
+        btn("Copy link", "", () => navigator.clipboard.writeText(fresh[r.id]));
+      }
+      btn(live ? "New link" : "Make link", "", async () => { await newLink(r); });
+      if (live) btn("Revoke link", "", async () => { await api("/api/admin/requests/" + r.id, { method: "POST", body: JSON.stringify({ action: "revokelink" }) }); delete fresh[r.id]; await load(); });
+    }
+    if (r.status === "pending") btn("Reject", "", () => act(r, "reject"));
+    if (r.status !== "pending") btn("Back to waiting", "", () => act(r, "pending"));
+    btn("Delete", "d", () => { if (confirm("Delete " + r.email + "? This can't be undone.")) act(r, "delete"); });
+    c5.append(acts); tr.append(c1, c2, c3, c4, c5); return tr; }));
+}
+function drawLinks() {
+  $("dmginfo").textContent = dmg ? `The Mac download on the server: ${dmg.filename || "Deadbolt.dmg"}${dmg.size ? " (" + (dmg.size / 1048576).toFixed(1) + " MB)" : ""}.` : "";
+  $("dmgwarn").hidden = !!dmg; $("dmgwarn").textContent = dmg ? "" : "No Mac download has been uploaded yet: links won’t work until scripts/release-mac.sh --deploy puts one on the server.";
+  const rows = links.filter((l) => l.request_id === null);
+  $("lrows").replaceChildren(...rows.map((l) => {
+    const tr = document.createElement("tr");
+    const a = document.createElement("td"); a.className = "em"; a.textContent = l.label || "Link";
+    const b = document.createElement("td"); b.className = active(l) ? "st-approved" : "st-rejected";
+    b.textContent = l.revoked ? "revoked" : active(l) ? `${left(l.expires_at)} · ${l.downloads}/${l.max_downloads} used` : (l.downloads >= l.max_downloads ? "used up" : "expired");
+    const c = document.createElement("td"); const acts = document.createElement("div"); acts.className = "acts";
+    const mk = (label, cls, fn) => { const x = document.createElement("button"); x.textContent = label; if (cls) x.className = cls; x.onclick = fn; acts.append(x); };
+    if (active(l)) mk("Revoke", "", async () => { await api("/api/admin/links/" + l.id, { method: "POST", body: JSON.stringify({ action: "revoke" }) }); await load(); });
+    mk("Delete", "d", async () => { await api("/api/admin/links/" + l.id, { method: "POST", body: JSON.stringify({ action: "delete" }) }); await load(); });
+    c.append(acts); tr.append(a, b, c); return tr; }));
+}
+$("lmk").onclick = async () => {
+  const res = await api("/api/admin/links", { method: "POST", body: JSON.stringify({ label: $("ll").value, days: Number($("ld").value), max: Number($("lm").value) }) });
+  const j = await res.json().catch(() => ({}));
+  if (j.url) { showFresh((($("ll").value || "Link")) + ":", j.url); $("ll").value = ""; }
+  await load();
+};
+async function act(r, action) {
+  const res = await api("/api/admin/requests/" + r.id, { method: "POST", body: JSON.stringify({ action }) });
+  const j = await res.json().catch(() => ({}));
+  if (j.url) { fresh[r.id] = j.url; showFresh("Link for " + r.email + ":", j.url); }
+  if (action !== "approve") delete fresh[r.id];
+  await load();
+}
+async function newLink(r) {
+  const res = await api("/api/admin/requests/" + r.id, { method: "POST", body: JSON.stringify({ action: "newlink" }) });
+  const j = await res.json().catch(() => ({}));
+  if (j.url) { fresh[r.id] = j.url; showFresh("New link for " + r.email + ":", j.url); }
+  await load();
+}
+async function load() {
+  const r = await api("/api/admin/requests"); const j = await r.json();
+  all = j.requests; links = j.links || []; dmg = j.dmg; template = j.template ?? DEFAULT; $("tt").value = template; show(true); draw(); drawLinks();
+}
+$("lf").onsubmit = async (e) => {
+  e.preventDefault(); $("lmsg").textContent = "";
+  const r = await api("/api/admin/login", { method: "POST", body: JSON.stringify({ key: $("key").value }) });
+  if (r.ok) { $("key").value = ""; await load(); } else { $("lmsg").textContent = (await r.json().catch(() => ({}))).error || "Couldn't sign in."; }
+};
+$("save").onclick = async () => {
+  const r = await api("/api/admin/template", { method: "PUT", body: JSON.stringify({ text: $("tt").value }) });
+  if (r.ok) { template = $("tt").value; $("tmsg").textContent = "Saved."; draw(); } else $("tmsg").textContent = "Couldn't save.";
+  setTimeout(() => ($("tmsg").textContent = ""), 2000);
+};
+$("refresh").onclick = load;
+$("out").onclick = async () => { await api("/api/admin/logout", { method: "POST" }).catch(() => {}); show(false); };
+load().catch(() => show(false));
+</script>
+</body>
+</html>

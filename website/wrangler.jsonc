@@ -1,9 +1,25 @@
-// Static information page for deadbolt.osborne.vc. Deployed 2026-11-18 (Worker deadbolt-site).
+// deadbolt.osborne.vc: static pages (./public) plus a small Worker for the invite form and its admin page.
+// Deployed 2026-11-18 (static); invite requests added 2026-11-23.
 // Redeploy: cd website && npx wrangler@4 deploy
+// Secret: ADMIN_KEY (wrangler secret put ADMIN_KEY). Local: put ADMIN_KEY=... in .dev.vars, then npx wrangler@4 dev
+// Database: D1 `deadbolt-invites` (schema.sql). Requests and expired links are deleted by the daily cron (see src/worker.js).
 {
   "name": "deadbolt-site",
+  "main": "src/worker.js",
   "compatibility_date": "2026-11-01",
-  "assets": { "directory": "./public" },
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/d/*"] },
+  // The notarized Mac DMG, under the key "Deadbolt.dmg" (KV values may be up to 25 MiB). Uploaded by scripts/release-mac.sh --deploy.
+  "kv_namespaces": [{ "binding": "DMG", "id": "90f4373196b34cad8eac1c60301b050d" }],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "deadbolt-invites", "database_id": "39970c89-c128-4c43-9062-d33d060aed98" }
+  ],
+  // Per-IP limits per minute (namespace_id is any number unique within the account).
+  "ratelimits": [
+    { "name": "REQUEST_LIMIT", "namespace_id": "4801", "simple": { "limit": 5, "period": 60 } },
+    { "name": "LOGIN_LIMIT", "namespace_id": "4802", "simple": { "limit": 6, "period": 60 } },
+    { "name": "DOWNLOAD_LIMIT", "namespace_id": "4803", "simple": { "limit": 10, "period": 60 } }
+  ],
+  "triggers": { "crons": ["17 3 * * *"] },
   // lab-login.osborne.vc: the "login on another subdomain" host for /lab test 5 (same site: osborne.vc)
   "routes": [
     { "pattern": "deadbolt.osborne.vc", "custom_domain": true },

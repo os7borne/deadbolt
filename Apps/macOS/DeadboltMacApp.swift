@@ -12,9 +12,7 @@ struct DeadboltMacApp: App {
         MenuBarExtra {
             MenuBarPanel().environment(session)
         } label: {
-            Image("MenuBarIcon")
-                .opacity(session.state == .unlocked ? 1 : 0.55)   // dimmed while locked
-                .accessibilityLabel(session.state == .unlocked ? "Deadbolt, unlocked" : "Deadbolt, locked")
+            MenuBarLabel(session: session)
         }
         .menuBarExtraStyle(.window)
 
@@ -29,12 +27,28 @@ struct DeadboltMacApp: App {
     }
 }
 
+/// The menu-bar icon. It is alive from launch, so it hands the bridge a way to open the main window: a closed SwiftUI window can
+/// only be reopened from inside SwiftUI (`openWindow`), and the Chrome popup's "Open Deadbolt" button needs exactly that.
+struct MenuBarLabel: View {
+    let session: VaultSession
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Image("MenuBarIcon")
+            .opacity(session.state == .unlocked ? 1 : 0.55)   // dimmed while locked
+            .accessibilityLabel(session.state == .unlocked ? "Deadbolt, unlocked" : "Deadbolt, locked")
+            .onAppear { MacRuntime.openMainWindow = { [openWindow] in openWindow(id: "main") } }
+    }
+}
+
 /// ⌘, and the app menu's Settings… open Settings inside the main window instead of a second window.
 struct SettingsCommand: Commands {
     let session: VaultSession
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
+        // Also registered here (commands exist from launch too), in case the menu-bar label hasn't appeared yet.
+        let _ = MacRuntime.openMainWindow = { [openWindow] in openWindow(id: "main") }
         CommandGroup(replacing: .appSettings) {
             Button("Settings…") {
                 if session.state == .unlocked { session.settingsOpen = true }
@@ -201,7 +215,7 @@ struct MenuBarPanel: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(l.password.isEmpty ? "Passkey only" : "Click to copy the password")
+            .help(!l.password.isEmpty ? "Click to copy the password" : l.isPasswordless ? "No password. Click to copy the username" : "Passkey only")
             if selected {
                 CopyButtons(login: l, size: 26)
             } else if let s = l.totpSecret {
@@ -287,6 +301,12 @@ struct MenuBarPanel: View {
     }
 
     private func copyPassword(_ l: LoginItem) {
+        if l.isPasswordless && !l.username.isEmpty {
+            Clipboard.copySecret(l.username)
+            try? session.mutate { $0.markUsed(l.id) }
+            session.show("Username copied", "This login has no password. Clipboard clears in 60 seconds")
+            return
+        }
         guard !l.password.isEmpty else { session.show("No password", "This login signs in with a passkey", style: .error); return }
         Clipboard.copySecret(l.password)
         try? session.mutate { $0.markUsed(l.id) }

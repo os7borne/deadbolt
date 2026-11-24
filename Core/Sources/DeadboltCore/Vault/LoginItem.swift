@@ -19,6 +19,10 @@ public struct LoginItem: Codable, Equatable, Identifiable, Sendable {
     public var createdAt: Date
     public var updatedAt: Date
     public var lastUsedAt: Date?
+    /// True when the owner saved this account on purpose without a password (sign-in by emailed link or code).
+    /// nil on logins made before this existed. Needed because an empty password alone is ambiguous: it also means
+    /// "passkey only" and "code only".
+    public var passwordless: Bool? = nil
     /// When each field last changed, for merging edits from other devices. nil on vaults made before sync.
     public var clocks: [String: HLC]? = nil
 
@@ -45,11 +49,16 @@ public struct LoginItem: Codable, Equatable, Identifiable, Sendable {
     }
 
     /// Replaces the password and keeps the old one in history (newest first, capped).
+    /// An empty old password (passkey-only or passwordless accounts) is not worth a history entry.
     public mutating func changePassword(to newPassword: String, now: Date = Date()) {
         guard newPassword != password else { return }
-        history.insert(PasswordHistoryEntry(password: password, replacedAt: now), at: 0)
-        if history.count > Self.historyLimit { history.removeLast(history.count - Self.historyLimit) }
+        if !password.isEmpty {
+            history.insert(PasswordHistoryEntry(password: password, replacedAt: now), at: 0)
+            if history.count > Self.historyLimit { history.removeLast(history.count - Self.historyLimit) }
+        }
         password = newPassword
+        // Clearing the password of an account with no passkey is a deliberate "this account has no password".
+        passwordless = newPassword.isEmpty && passkeyIDs.isEmpty ? true : nil
         updatedAt = now
     }
 
@@ -60,7 +69,21 @@ public struct LoginItem: Codable, Equatable, Identifiable, Sendable {
     }
 
     /// A one-time code on its own: no password, no passkey. Shown in code lists, never offered to fill a sign-in.
-    public var isCodeOnly: Bool { password.isEmpty && passkeyIDs.isEmpty && totpSecret != nil }
+    public var isCodeOnly: Bool { password.isEmpty && passkeyIDs.isEmpty && totpSecret != nil && passwordless != true }
+
+    /// The name a login gets from its website when the owner hasn't chosen one ("github.com" → "Github").
+    public static func defaultTitle(for sites: [String]) -> String {
+        sites.compactMap(Site.normalize).first.map(Site.displayName) ?? "Login"
+    }
+    /// The owner's own name for this login (shown in lists, AutoFill and the browser), or nil when it still uses the website's.
+    public var customName: String? {
+        let t = title.trimmingCharacters(in: .whitespaces)
+        return t.isEmpty || t == Self.defaultTitle(for: sites) ? nil : t
+    }
+
+    /// An account saved without a password on purpose: signs in by emailed link or code. Listed like any login;
+    /// only the username is useful to copy or fill.
+    public var isPasswordless: Bool { password.isEmpty && passkeyIDs.isEmpty && !isCodeOnly }
 
     func matches(host: String) -> Bool { sites.contains { Site.host(host, isCoveredBy: $0) } }
 }
@@ -108,7 +131,7 @@ public enum Site {
     }
 
     /// "github.com" → "Github", "accounts.google.com" → "Google". Good enough for a default title.
-    static func displayName(_ host: String) -> String {
+    public static func displayName(_ host: String) -> String {
         let parts = host.split(separator: ".")
         let name = parts.count >= 2 ? parts[parts.count - 2] : parts.first ?? Substring(host)
         return name.prefix(1).uppercased() + name.dropFirst()

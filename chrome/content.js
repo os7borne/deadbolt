@@ -64,6 +64,53 @@
     return /\busername\b/.test(el.autocomplete) || el.type === "email" || userWords.test(`${el.name} ${el.id}`);
   }
 
+  // ---------- email-only sign-in (emailed link or code): no password box, so the email is what gets saved ----------
+
+  /** Visible email boxes that hold an address. Used to spot an email-only sign-in and to see when its form has gone. */
+  const emailBoxes = (scope) => [...(scope || document).querySelectorAll("input")].filter((el) =>
+    visible(el) && !el.disabled && ["email", "text"].includes(el.type) && el.value.includes("@")
+    && (el.type === "email" || /\b(username|email)\b/.test(el.autocomplete) || /e-?mail/i.test(`${el.name} ${el.id} ${el.placeholder} ${el.ariaLabel || ""}`)));
+
+  /** Visible boxes that look like a one-time-code entry (a single box, or a row of one-digit boxes). */
+  const otpWords = /\b(otp|one.?time|verification|verify|passcode|security.?code|login.?code|sign.?in.?code|confirm(ation)?.?code)\b|\bcode\b/i;
+  const notOtp = /zip|postal|promo|coupon|discount|gift|voucher|country|area|referral|invite|captcha|search|card/i;
+  function otpBoxes() {
+    const skip = ["password", "hidden", "checkbox", "radio", "submit", "button", "file", "email", "image"];
+    const boxes = [...document.querySelectorAll("input")].filter((el) => visible(el) && !el.disabled && !el.readOnly && !skip.includes(el.type) && !isCardBox(el));
+    const digits = boxes.filter((el) => el.maxLength === 1 && ["text", "tel", "number"].includes(el.type));
+    return boxes.filter((el) => {
+      if (/\bone-time-code\b/.test(el.autocomplete)) return true;
+      const words = `${el.name} ${el.id} ${el.placeholder} ${el.ariaLabel || ""}`;
+      if (notOtp.test(words)) return false;
+      if (otpWords.test(words)) return true;
+      if (digits.length >= 4 && digits.includes(el)) return true;
+      return (el.inputMode === "numeric" || /\\d|0-9/.test(el.pattern || "")) && el.maxLength > 0 && el.maxLength <= 8;
+    });
+  }
+
+  const signInWords = /log[ -]?in|sign[ -]?in|sign[ -]?up|continue|next|\b(send|email|text|get)\b.{0,25}\b(code|link|otp)\b|magic|passwordless|verify|register|create (an )?account|join|get started|access/i;
+  const notSignIn = /subscribe|newsletter|updates|offers|waitlist|notify|notified|search|coupon|promo|discount|contact|message|feedback|invite|download|demo|quote|unsubscribe/i;
+
+  /** A submitted form with one email address, no password box and a sign-in feel: keep the email so the next screens can offer to save it. */
+  function emailOnlyCapture(form, button) {
+    const scope = form || document;
+    if (scope.querySelector("textarea")) return false;                                        // a contact form
+    if ([...scope.querySelectorAll('input[type="password"]')].some(visible)) return false;   // password forms have their own path
+    const boxes = emailBoxes(scope);
+    if (boxes.length !== 1) return false;
+    const el = boxes[0];
+    const label = `${button?.textContent || ""} ${button?.value || ""} ${button?.ariaLabel || ""}`.slice(0, 120);
+    const heading = (scope.querySelector?.("h1, h2, h3, legend")?.textContent || "").slice(0, 120);
+    const attrs = `${form?.id || ""} ${typeof form?.className === "string" ? form.className : ""} ${form?.getAttribute?.("aria-label") || ""} ${el.placeholder || ""}`;
+    if (notSignIn.test(`${label} ${heading} ${attrs}`)) return false;                        // newsletter, search, contact…
+    const reads = /\busername\b/.test(el.autocomplete) || signInWords.test(label) || signInWords.test(heading)
+               || /log-?in|sign-?in|sign-?up|signup|auth|register|session/i.test(location.pathname);
+    if (!reads) return false;
+    send({ type: "capture", username: el.value.trim(), password: "", passwordless: true });
+    pollPending(60_000);   // the code or link step can take a while; checkPending extends this while it's still waiting
+    return true;
+  }
+
   /** Sets a value the way a person typing would, so React/Vue/Angular forms notice. */
   function setValue(el, value) {
     if (!el) return;
@@ -186,8 +233,8 @@
     } else if (reply.ok && reply.accounts.some((a) => !a.codeOnly)) {
       rows = reply.accounts.filter((a) => !a.codeOnly).map((a) => `
         <button class="row" data-id="${esc(a.id)}" role="option">
-          <div class="tile">${esc((a.username || a.title || "?")[0].toUpperCase())}</div>
-          <div class="t"><b>${esc(a.username || a.title)}</b><span>${esc(a.label || (a.hasPassword ? "Password" : a.hasPasskey ? "Passkey only" : "Code only"))}</span></div>
+          <div class="tile">${esc((a.name || a.username || a.title || "?")[0].toUpperCase())}</div>
+          <div class="t"><b>${esc(a.name || a.username || a.title)}</b><span>${esc(a.name ? [a.username, a.label].filter(Boolean).join(" · ") : (a.label || (a.hasPassword ? "Password" : a.hasPasskey ? "Passkey only" : "Code only")))}</span></div>
           ${a.preferred ? '<span class="star">★</span>' : ""}
         </button>`).join("");
     } else {
@@ -419,9 +466,9 @@
 
   // ---------- save after sign-in ----------
 
-  function capture(form) {
+  function capture(form, button) {
     const filled = (form ? [...form.querySelectorAll('input[type="password"]')] : passwordFields()).filter((p) => p.value && !isCardBox(p));
-    if (!filled.length) return;
+    if (!filled.length) { emailOnlyCapture(form, button); return; }
     // Change-password forms have old + new (+ confirm): save the NEW one, never the old.
     const pw = filled.find((p) => p.autocomplete === "new-password") || (filled.length > 1 ? filled[filled.length - 1] : filled[0]);
     send({ type: "capture", username: typedUsernameFor(pw), password: pw.value });
@@ -436,7 +483,7 @@
 
   const filledPassword = (scope) => [...(scope || document).querySelectorAll('input[type="password"]')].some((p) => p.value && visible(p) && !isCardBox(p));
 
-  document.addEventListener("submit", (e) => { capture(e.target); rememberStepUser(e.target); }, true);
+  document.addEventListener("submit", (e) => { capture(e.target, e.submitter); rememberStepUser(e.target); }, true);
   document.addEventListener("click", (e) => {
     const b = e.target.closest?.('button, input[type="submit"], input[type="image"], [role="button"], a');
     if (!b || host.contains(b)) return;
@@ -445,23 +492,26 @@
     // buttons that read like signing in.
     if (form ? filledPassword(form)
              : filledPassword() && /log ?in|sign ?in|sign ?up|continue|next|submit|register|create|join|start|go/i.test(`${b.textContent} ${b.value || ""} ${b.ariaLabel || ""}`)) {
-      capture(form);
-    } else if (!filledPassword(form || undefined)) rememberStepUser(form);
+      capture(form, b);
+    } else if (!filledPassword(form || undefined)) { rememberStepUser(form); emailOnlyCapture(form, b); }
   }, true);
   // Leaving the page with a typed password still filled in (sites that sign in from script and navigate away).
   addEventListener("pagehide", () => { if (filledPassword()) capture(null); }, true);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && e.target instanceof HTMLInputElement && (e.target.type === "password" || e.target.form)) capture(e.target.form);
+    if (e.key === "Enter" && e.target instanceof HTMLInputElement && (e.target.type === "password" || e.target.form)) capture(e.target.form, null);
   }, true);
 
   /** Single-page apps sign in without leaving the page, and can take a few seconds. Look every 1.5 s for up to 40 s
    *  (stopping as soon as the question is settled) instead of once. */
-  let pollTimer = null;
-  function pollPending() {
-    clearInterval(pollTimer);
-    const until = Date.now() + 40_000;
+  let pollTimer = null, pollUntil = 0, waiting = false;
+  function pollPending(ms = 40_000) {
+    pollUntil = Math.max(pollUntil, Date.now() + ms);
+    if (pollTimer) return;
     pollTimer = setInterval(async () => {
-      if (Date.now() > until || (await checkPending())) clearInterval(pollTimer);
+      waiting = false;
+      const settled = await checkPending();
+      if (waiting) pollUntil = Math.max(pollUntil, Date.now() + 10_000);   // an email-only sign-in is still going: keep looking
+      if (settled || Date.now() > pollUntil) { clearInterval(pollTimer); pollTimer = null; }
     }, 1500);
   }
 
@@ -469,8 +519,12 @@
   async function checkPending() {
     if (!card.hidden) return false;
     if (passwordFields().some((p) => p.value)) return false; // still on the form (maybe a wrong password): wait
-    const r = await send({ type: "pendingSave" });
+    // For an email-only sign-in the Mac side holds the question until the sign-in has finished: no password box (two-step),
+    // no code box and no email form left on the page.
+    const formUp = passwordFields().length > 0 || otpBoxes().length > 0 || emailBoxes(document).length > 0;
+    const r = await send({ type: "pendingSave", formUp });
     if (!r.ok) return false;
+    if (r.action === "wait") { waiting = true; pollPending(0); return false; }
     if (r.action === "none") return r.reason !== "otherSite";
     attach();
     if (r.action === "unlock") {
@@ -478,7 +532,7 @@
       card.innerHTML = `
         <div class="head" style="padding:0;border:0">${logo}Deadbolt</div>
         <h2>Save to Deadbolt?</h2>
-        <p>${esc(r.username || "No username")} · ${esc(r.site)}</p>
+        <p>${esc(r.username || "No username")} · ${esc(r.site)}${r.passwordless ? " · no password" : ""}</p>
         <p>Deadbolt is locked. Unlock to save this login.</p>
         <div class="btns"><button class="primary" data-a="unlock">Unlock with Touch ID</button><button class="secondary" data-a="no">Not now</button></div>`;
       card.hidden = false;
@@ -495,19 +549,21 @@
       return true;
     }
     const update = r.action === "update";
+    const adds = update && r.addsPassword;   // the saved login had no password yet
     card.innerHTML = `
       <div class="head" style="padding:0;border:0">${logo}Deadbolt</div>
-      <h2>${update ? "Update saved password?" : "Save to Deadbolt?"}</h2>
-      <p>${esc(r.username || "No username")} · ${esc(r.site)}</p>
-      ${update ? "<p>The old password moves to history, so you can undo this.</p>" : ""}
-      <div class="btns"><button class="primary" data-a="save">${update ? "Update" : "Save"}</button><button class="secondary" data-a="no">Not now</button></div>
+      <h2>${adds ? "Add the password to your saved login?" : update ? "Update saved password?" : "Save to Deadbolt?"}</h2>
+      <p>${esc(r.username || "No username")} · ${esc(r.site)}${r.passwordless ? " · no password" : ""}</p>
+      ${r.passwordless ? "<p>This site signs you in with an emailed link or code. Deadbolt keeps the email so you can copy it next time.</p>" : ""}
+      ${update && !adds ? "<p>The old password moves to history, so you can undo this.</p>" : ""}
+      <div class="btns"><button class="primary" data-a="save">${adds ? "Add password" : update ? "Update" : "Save"}</button><button class="secondary" data-a="no">Not now</button></div>
       ${update ? '<button class="link" data-a="separate">Save as a separate login</button>' : ""}`;
     card.hidden = false;
     card.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", async (e) => {
       if (!genuine(e)) return;
       if (b.dataset.a === "no") { await send({ type: "dismissSave" }); card.hidden = true; return; }
       const res = await send({ type: "save", separate: b.dataset.a === "separate" });
-      card.innerHTML = res.ok ? `<p class="ok">✓ ${update && b.dataset.a !== "separate" ? "Password updated" : "Saved to Deadbolt"}</p>`
+      card.innerHTML = res.ok ? `<p class="ok">✓ ${update && b.dataset.a !== "separate" ? (adds ? "Password added" : "Password updated") : "Saved to Deadbolt"}</p>`
                               : `<p>Couldn’t save — open Deadbolt and try again.</p>`;
       setTimeout(() => (card.hidden = true), 2200);
     }));

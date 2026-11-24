@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Deadbolt</title>
+<meta name="description" content="How Deadbolt handles your data: no account, no analytics, encrypted before it is stored, and a sync relay that holds only sealed messages for up to 7 days.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0B0C0F">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/legal.css">
+</head>
+<body>
+<header class="nav"><div class="wrap">
+  <a class="brand" href="/"><img src="/logo.png" alt="" width="28" height="28">Deadbolt</a>
+  <nav class="links" aria-label="Pages"><a href="/">Home</a><a href="/invite">Invite</a><a href="/privacy" aria-current="page">Privacy</a><a href="/terms">Terms</a></nav>
+</div></header>
+<main>
+  <p class="kicker">Privacy Policy</p>
+  <h1>Your passwords are yours.</h1>
+  <p class="meta">Effective 23 November 2026 · Applies to the Deadbolt apps for iPhone and Mac, the Deadbolt extension for Chrome, and this website.</p>
+
+  <div class="box"><p><b>In short:</b> there is no Deadbolt account. Your vault is encrypted on your own device before anything is stored or synced. I (the developer) never receive your passwords, cards, notes or master password, and Deadbolt has no analytics, advertising or tracking.</p></div>
+
+  <h2>Who is responsible</h2>
+  <p>Deadbolt is made by Osborne Saldanha. Questions, requests and complaints: <a href="mailto:apps@osborne.vc">apps@osborne.vc</a>.</p>
+
+  <h2>What stays on your devices</h2>
+  <ul>
+    <li><b>Your vault</b> (logins, passkeys, one-time-code secrets, cards, identities, secure notes) is sealed on the device with keys that only you control, and is kept only on your devices. Your master password never leaves the device that you type it on.</li>
+    <li><b>Face ID / Touch ID</b> is handled by the operating system. Deadbolt never receives your biometric data.</li>
+    <li><b>The Chrome extension</b> stores nothing in Chrome. It passes sign-in and card details between the web page and the Deadbolt app on your Mac, on your Mac. A sign-in you have just submitted is held in the browser’s memory for at most 5 minutes so Deadbolt can offer to save it, and is then discarded. The extension makes no network requests of its own and sends nothing to me or to any third party.</li>
+    <li><b>Backups</b> are encrypted files that Deadbolt writes only to a folder you choose. Deadbolt’s vault is excluded from iPhone and Mac device backups.</li>
+  </ul>
+
+  <h2>What passes through Deadbolt’s servers</h2>
+  <p>Deadbolt runs one small service, the <b>sync relay</b> (<span style="font-family:ui-monospace,Menlo,monospace">deadbolt-relay.osborne.vc</span>, hosted on Cloudflare). It exists so your devices can sync without an account. It is a dead-drop, not a database of your vault.</p>
+  <table>
+    <tbody>
+      <tr><th scope="row">Sealed sync messages</th><td>Encrypted and signed on your device; the relay cannot read them. Held only until all your other devices have fetched them, and never more than 7 days.</td></tr>
+      <tr><th scope="row">A random mailbox ID and device keys</th><td>The mailbox is addressed by a random identifier. The relay stores the <i>public</i> keys of your devices so it can check signatures. No name, email address or account number is stored.</td></tr>
+      <tr><th scope="row">Pairing requests</th><td>When you add a device, a short-lived room is used for up to 15 minutes, then deleted.</td></tr>
+      <tr><th scope="row">iPhone push token</th><td>If you use the iPhone app, Apple’s push token for it is stored so the relay can send a silent wake-up to fetch changes. The push contains no data.</td></tr>
+      <tr><th scope="row">Message size, timing and IP address</th><td>The relay can see how large and how often encrypted messages are, and the IP address of the request (used for rate limiting). As with any service on Cloudflare, Cloudflare processes request details such as the IP address to deliver and protect the service.</td></tr>
+    </tbody>
+  </table>
+  <p>The relay never sees your passwords or any vault contents, and keeps no copy of your vault.</p>
+
+  <h2>Website icons (optional)</h2>
+  <p>To show a site’s icon next to a login, the app asks Deadbolt’s server for it (<span style="font-family:ui-monospace,Menlo,monospace">/v1/icon/&lt;domain&gt;</span>). That request contains the <b>domain name</b> (for example <i>github.com</i>), not your username, password or any account detail. The server fetches the site’s own icon, uses no cookies and no third-party icon service, and caches the result (about 7 days on the server, 30 days in the app). You can turn this off in <i>Settings › Privacy › Show website icons</i>; then no such requests are made and the cache is deleted.</p>
+
+  <h2 id="invites">Invite requests</h2>
+  <p>Deadbolt is invite-only for now. If you fill in the request form on this site, I store the <b>email address</b> you enter, the <b>devices</b> you pick and the <b>optional note</b>, together with the date and whether I approved the request. I use them only to decide on your request, to reply, and to send you the download links.</p>
+  <ul>
+    <li>They are kept in a database at Cloudflare. No IP address, cookie or tracking data is stored with a request.</li>
+    <li>Rejected requests are deleted after 30 days, and requests I never handled after 90 days. Approved requests are kept until you ask me to delete them, or until I stop inviting people.</li>
+    <li>To see or delete your request at any time, email <a href="mailto:apps@osborne.vc">apps@osborne.vc</a> from the address you used.</li>
+    <li>If you are approved for the Mac app, I create a personal download link for you. It expires after about a week and works only a few times. Deadbolt keeps only a scrambled (hashed) copy of the link and a count of how many times it was used. No IP address is stored.</li>
+    <li>If you are invited to the iPhone app through TestFlight, Apple receives your email address to send that invite, under Apple’s own privacy terms.</li>
+  </ul>
+
+  <h2>What I do not do</h2>
+  <ul>
+    <li>No analytics, advertising, tracking or profiling, in the apps, the extension or this website.</li>
+    <li>I do not sell or share your data, and I do not use it for anything other than making Deadbolt work for you.</li>
+    <li>This website sets no cookies for visitors and loads nothing from third parties.</li>
+  </ul>
+
+  <h2>Apple and Google</h2>
+  <p>If you install through TestFlight or the App Store, Apple may give the developer anonymous crash and usage statistics, depending on your device settings; I cannot see who you are from them. The Chrome extension is distributed through the Chrome Web Store, which has its own privacy practices. AutoFill, passkeys, Face ID, push notifications and Chrome’s native messaging are provided by Apple and Google under their own terms.</p>
+
+  <h2>Your choices</h2>
+  <ul>
+    <li><b>Delete your data:</b> Settings › <i>Erase Deadbolt from this device</i> removes the vault, keys and settings from that device. Removing a device from another device revokes its sync access and rotates the vault key.</li>
+    <li>Sealed messages on the relay delete themselves within 7 days. To ask about anything else, email me at the address above.</li>
+    <li>Because I hold no readable copy of your vault, I cannot recover it for you. Keep your Recovery Kit safe.</li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>Deadbolt is not directed at children under 13 and I do not knowingly collect information from them.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes in a way that matters, I will update the date at the top and describe the change on this page.</p>
+</main>
+<footer><div class="wrap"><span>Deadbolt · deadbolt.osborne.vc</span><span><a href="/">Home</a> · <a href="/invite">Invite</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span></div></footer>
+</body>
+</html>

@@ -280,3 +280,21 @@ Fix (`content.js`): `pickScope` grows outward from the focused field and stops b
 `last4Hint` reads "****4165" from the nearest part of the page and the menu then offers just the matching card (all cards if none matches or the page shows several); the popup's Fill on a page with several identical boxes and nothing focused says "click the one you want first".
 Tests: scratch harness `test5.js` (10 checks, 6 fail on the old code). Total across the five scratch suites: 92.
 Reload the extension (0.5.3); no Mac reinstall needed. Safari's copy is regenerated and ships with the next Mac build.
+
+## 18. "Open Deadbolt" in the Chrome popup did nothing (fixed 2026-11-20, installed 23:14)
+
+Owner report. Reproduced against the installed app: Deadbolt running with **no window on screen**, bridge `{"type":"open"}` replies `ok`, still no window (checked with a CoreGraphics window list, scratch `winlist.swift`).
+Cause: `BridgeServer.open()` only brought *existing* windows forward. Deadbolt is a menu-bar app (LSUIElement); once the main window is closed a SwiftUI `Window` can only be reopened from inside SwiftUI (`openWindow`), which the bridge doesn't have. A plain `NSApp.activate()` from a background request is also often ignored on recent macOS. The same `open()` is used when Touch ID can't unlock ("show the window for the master password") and for the password fallback on a card/identity copy, so those had the same gap.
+Fix: `MenuBarLabel` (alive from launch) and `SettingsCommand` register `MacRuntime.openMainWindow` (= `openWindow(id: "main")`); `open()` calls it, then `NSApp.activate()`, orders existing windows front, and asks LaunchServices to open/activate the app (`NSWorkspace.openApplication`, `activates = true`).
+To verify after installing: close Deadbolt's window, run the bridge `open` request (or press the popup button) and count windows again.
+
+Verified after installing (agent, scripted): with Deadbolt running, no window on screen and Zed frontmost, the bridge `open` request (the one the popup button sends) leaves **Deadbolt frontmost with its 1045x700 window on screen** (`lsappinfo front` + a CoreGraphics window list). Before the fix the same request replied ok and nothing appeared.
+Caveats: not clicked from a real Chrome popup; the window was "not on screen" rather than closed by hand (a scripted close isn't supported); `System Events`' "frontmost" is unreliable for this menu-bar app, use `lsappinfo front`.
+
+## 19. Toolbar account count never came back after unlocking (fixed 2026-11-20, extension 0.5.4)
+
+Owner report: the extension icon no longer shows the account count. Checked: the Mac side was fine (unlocked, a passive `accounts` request returned the right accounts).
+Cause: by design the badge is cleared while Deadbolt is locked (a locked vault shouldn't show even a count), but nothing ever **restored** it: the count only returned on the next page load. Each Mac reinstall restarted Deadbolt locked, the minute check cleared every badge, and after unlocking they stayed empty until each tab was reloaded.
+Fix (`background.js`): remember which tabs reported which https page and whether their count is *waiting* (Deadbolt locked / not running / unreachable when asked, or the badge was cleared on lock). Waiting tabs are refreshed on the minute check once Deadbolt is available, when the tab is activated (`tabs.onActivated`, optional), and when the popup opens (`badgeNow`, popup-only). With nothing waiting the minute check makes no extra requests. Storage updates are serialised so two tabs loading at once can't overwrite each other.
+Still true: a tab opened before an extension reload has an orphaned page script and reports nothing until it is reloaded once.
+Tests: scratch `test6.js` (15 checks; the restore checks fail on the old code), all six suites 107 checks. Reload the extension (0.5.4); no Mac reinstall needed.

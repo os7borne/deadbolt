@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Deadbolt",
-  "version": "0.5.3",
+  "version": "0.6.1",
   "description": "Save and fill passwords from Deadbolt for Mac. Nothing is stored in Safari.",
   "minimum_chrome_version": "120",
   "permissions": [

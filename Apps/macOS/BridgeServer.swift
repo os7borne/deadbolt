@@ -13,7 +13,9 @@ import Security
 @MainActor
 final class BridgeServer {
     static let groupID = "4CMN2DUGUL.com.osborne.deadbolt"
-    static let extensionID = "lhalfpljkecpmpgcfibbaeldddnekdfa"
+    /// The Chrome extensions allowed to start the native-messaging host: the one loaded from the repo (fixed key) and the
+    /// one published on the Chrome Web Store (ID assigned by the store when the item was created, 2026-11-23).
+    static let extensionIDs = ["lhalfpljkecpmpgcfibbaeldddnekdfa", "geldeaijmgdlfnkgkjdgmlmcadomfhch"]
     /// Exactly two callers: the Chrome native-messaging host and the Safari extension, both signed by this team.
     static let requirement = #"(identifier "com.osborne.deadbolt.bridge" or identifier "com.osborne.deadbolt.safari") and anchor apple generic and certificate leaf[subject.OU] = "4CMN2DUGUL""#
 
@@ -73,7 +75,7 @@ final class BridgeServer {
             "description": "Deadbolt password manager",
             "path": Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/deadbolt-bridge").path,
             "type": "stdio",
-            "allowed_origins": ["chrome-extension://\(Self.extensionID)/"],
+            "allowed_origins": Self.extensionIDs.map { "chrome-extension://\($0)/" },
         ]
         // Only create the NativeMessagingHosts folder itself; if the browser's own folder is missing, it isn't installed.
         do { try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: false) }
@@ -182,9 +184,9 @@ final class BridgeServer {
         switch type {
         case "accounts":
             let list = session.vault.accounts(for: host).map { l -> [String: Any] in
-                ["id": l.id.uuidString, "title": l.title, "username": l.username, "label": l.label ?? "",
+                ["id": l.id.uuidString, "title": l.title, "name": l.customName ?? "", "username": l.username, "label": l.label ?? "",
                  "hasPassword": !l.password.isEmpty, "hasCode": l.totpSecret != nil, "hasPasskey": !l.passkeyIDs.isEmpty,
-                 "codeOnly": l.isCodeOnly, "preferred": l.preferred]
+                 "codeOnly": l.isCodeOnly, "passwordless": l.isPasswordless, "preferred": l.preferred]
             }
             return ["ok": true, "site": host, "accounts": list]
 
@@ -202,7 +204,9 @@ final class BridgeServer {
             return ["ok": true, "username": login.username, "password": login.password]
 
         case "propose":
-            guard let user = req["username"] as? String, let pass = req["password"] as? String, !pass.isEmpty else {
+            // A password may be empty (sign-in by emailed link or code), but then the username is all there is to save.
+            guard let user = req["username"] as? String, let pass = req["password"] as? String,
+                  !(pass.isEmpty && user.trimmingCharacters(in: .whitespaces).isEmpty) else {
                 return ["ok": false, "error": "badRequest"]
             }
             // The page now showing may be another subdomain after a redirect (login.x.com → app.x.com): same registrable
@@ -212,12 +216,13 @@ final class BridgeServer {
             }
             switch session.vault.proposeSave(host: host, username: user, password: pass) {
             case .new: return ["ok": true, "action": "save"]
-            case .update: return ["ok": true, "action": "update"]
+            case .update(let id): return ["ok": true, "action": "update", "addsPassword": session.vault.login(id)?.password.isEmpty ?? false]
             case .unchanged: return ["ok": true, "action": "none"]
             }
 
         case "save":
-            guard Prefs.offerToSave, let user = req["username"] as? String, let pass = req["password"] as? String, !pass.isEmpty else {
+            guard Prefs.offerToSave, let user = req["username"] as? String, let pass = req["password"] as? String,
+                  !(pass.isEmpty && user.trimmingCharacters(in: .whitespaces).isEmpty) else {
                 return ["ok": false, "error": "badRequest"]
             }
             let separate = (req["separate"] as? Bool) ?? false
@@ -225,6 +230,27 @@ final class BridgeServer {
                 try session.mutate { v in try v.save(host: host, username: user, password: pass, asNewAccount: separate) }
                 return ["ok": true]
             } catch { return ["ok": false, "error": "saveFailed"] }
+
+        case "add":
+            // "Add login" in the extension's popup: an explicit action by the owner, so it doesn't depend on the
+            // "offer to save" preference. Only the popup sends this (the extension refuses it from pages). The password
+            // may be empty (sign-in by emailed link or code); an existing login's password is never erased by that.
+            guard let user = (req["username"] as? String)?.trimmingCharacters(in: .whitespaces), !user.isEmpty,
+                  let pass = req["password"] as? String else { return ["ok": false, "error": "badRequest"] }
+            let outcome: String
+            switch session.vault.proposeSave(host: host, username: user, password: pass) {
+            case .new: outcome = "added"
+            case .update: outcome = "updated"
+            case .unchanged: outcome = "exists"
+            }
+            do {
+                try session.mutate { v in try v.save(host: host, username: user, password: pass) }
+                return ["ok": true, "result": outcome, "site": host]
+            } catch { return ["ok": false, "error": "saveFailed"] }
+
+        case "site":
+            // The site a login added from this page should cover: its main (registrable) domain, as a suggestion.
+            return ["ok": true, "site": host, "suggested": PublicSuffix.registrableDomain(host) ?? host]
 
         default:
             return ["ok": false, "error": "unknown"]
@@ -427,8 +453,15 @@ final class BridgeServer {
         return Data(base64Encoded: b)
     }
 
+    /// Brings Deadbolt's window to the front, creating it if it was closed (the Chrome popup's "Open Deadbolt", or a password prompt).
+    /// Deadbolt is a menu-bar app, so an ordinary activate() from a background request is often ignored; asking LaunchServices to
+    /// open the app is the route that works when another app (Chrome) was in front.
     private func open() {
+        MacRuntime.openMainWindow?()
         NSApp.activate()
         for w in NSApp.windows where w.identifier?.rawValue.contains("main") == true || w.title == "Deadbolt" { w.makeKeyAndOrderFront(nil) }
+        let cfg = NSWorkspace.OpenConfiguration()
+        cfg.activates = true
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: cfg) { _, _ in }
     }
 }

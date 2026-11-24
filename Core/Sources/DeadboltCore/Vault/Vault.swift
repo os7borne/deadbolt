@@ -125,6 +125,8 @@ public struct Vault: Codable, Equatable, Sendable {
         guard let existing = logins.first(where: { $0.matches(host: host) && Self.canonicalUsername($0.username) == user }) else {
             return .new
         }
+        // Saving an account with no password never touches one that exists: an empty value must not erase a real password.
+        if password.isEmpty { return .unchanged(existing: existing.id) }
         return existing.password == password ? .unchanged(existing: existing.id) : .update(existing: existing.id)
     }
 
@@ -145,7 +147,8 @@ public struct Vault: Codable, Equatable, Sendable {
             }
         }
         let isFirstOnSite = accounts(for: site).isEmpty
-        let item = LoginItem(sites: [site], username: username, password: password, preferred: isFirstOnSite, now: now)
+        var item = LoginItem(sites: [site], username: username, password: password, preferred: isFirstOnSite, now: now)
+        if password.isEmpty { item.passwordless = true }
         logins.append(item)
         return item.id
     }

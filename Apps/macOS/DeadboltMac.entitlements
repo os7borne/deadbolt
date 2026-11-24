@@ -30,6 +30,11 @@
 		<string>/Library/Application Support/Aside/NativeMessagingHosts/</string>
 		<string>/Library/Application Support/com.ardia.browser/Chromium/NativeMessagingHosts/</string>
 	</array>
+	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spks</string>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spki</string>
+	</array>
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)com.osborne.deadbolt.shared</string>

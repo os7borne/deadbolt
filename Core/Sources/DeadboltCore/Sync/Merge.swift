@@ -37,7 +37,7 @@ public struct Revocation: Codable, Equatable, Sendable {
 
 extension LoginItem {
     /// Fields merged last-writer-wins. `history` is merged by union, `createdAt` by min.
-    static let mergedFields = ["title", "sites", "username", "password", "label", "totpSecret", "passkeyIDs", "notes", "customFields", "preferred", "lastUsedAt"]
+    static let mergedFields = ["title", "sites", "username", "password", "label", "totpSecret", "passkeyIDs", "notes", "customFields", "passwordless", "preferred", "lastUsedAt"]
 
     func clock(_ field: String) -> HLC { clocks?[field] ?? .zero }
     var newestClock: HLC { clocks?.values.max() ?? .zero }
@@ -53,6 +53,7 @@ extension LoginItem {
         if passkeyIDs != old.passkeyIDs { out.append("passkeyIDs") }
         if notes != old.notes { out.append("notes") }
         if customFields != old.customFields { out.append("customFields") }
+        if passwordless != old.passwordless { out.append("passwordless") }
         if preferred != old.preferred { out.append("preferred") }
         if lastUsedAt != old.lastUsedAt { out.append("lastUsedAt") }
         if history != old.history && !out.contains("password") { out.append("password") } // restore/history edits travel with password
@@ -64,7 +65,7 @@ extension LoginItem {
         var m = a
         func pick<T>(_ f: String, _ kp: WritableKeyPath<LoginItem, T>) { if b.clock(f) > a.clock(f) { m[keyPath: kp] = b[keyPath: kp] } }
         pick("title", \.title); pick("sites", \.sites); pick("username", \.username); pick("password", \.password)
-        pick("label", \.label); pick("totpSecret", \.totpSecret); pick("passkeyIDs", \.passkeyIDs); pick("notes", \.notes); pick("customFields", \.customFields)
+        pick("label", \.label); pick("totpSecret", \.totpSecret); pick("passkeyIDs", \.passkeyIDs); pick("notes", \.notes); pick("customFields", \.customFields); pick("passwordless", \.passwordless)
         pick("preferred", \.preferred); pick("lastUsedAt", \.lastUsedAt)
 
         var history = a.history + b.history

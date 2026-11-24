@@ -1,0 +1,34 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Deadbolt</title>
+        <item>
+            <title>0.1.2</title>
+            <pubDate>Tue, 24 Nov 2026 00:09:34 +0530</pubDate>
+            <link>https://deadbolt.osborne.vc/</link>
+            <sparkle:version>3</sparkle:version>
+            <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<meta charset="utf-8"><style>body{font:13px -apple-system,sans-serif}code{font:12px ui-monospace}</style><ul>
+<li>You can now give any login your own name (the new Name box at the top of the login form). It shows in lists, AutoFill, the Codes tab and the Chrome extension. Leave it empty to keep the website&#x27;s name.</li>
+<li>This version arrived through Deadbolt&#x27;s built-in updater.</li>
+</ul>]]></description>
+            <enclosure url="https://deadbolt.osborne.vc/updates/Deadbolt-0.1.2.zip" length="8085177" type="application/octet-stream" sparkle:edSignature="9XeOZNPJJaxI/KNu8oN/wWblllNtoJFECmpt/JOJ4MEF6JQwOeo+ND1ei0MovKAc8/nCNNHnYEcnfhE9EPaQCA=="/>
+        </item>
+        <item>
+            <title>0.1.1</title>
+            <pubDate>Mon, 23 Nov 2026 17:53:34 +0530</pubDate>
+            <link>https://deadbolt.osborne.vc/</link>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<meta charset="utf-8"><style>body{font:13px -apple-system,sans-serif}code{font:12px ui-monospace}</style><ul>
+<li>Deadbolt for Mac now updates itself: it checks about once an hour and installs new versions at a quiet moment. Turn it off or check by hand in Settings › General › Updates.</li>
+<li>Logins can be saved without a password, for sites that sign you in with an emailed link or code. Add a login from the Chrome toolbar button, starting from the page you are on.</li>
+<li>Chrome now offers to save sites that only email you a sign-in code.</li>
+<li>The Mac app trusts the Chrome Web Store version of the extension.</li>
+</ul>]]></description>
+            <enclosure url="https://deadbolt.osborne.vc/updates/Deadbolt-0.1.1.zip" length="8078735" type="application/octet-stream" sparkle:edSignature="KRMsCRk4pJ0i5zPq4sra2OrCSR+6kE00YCHdbIreNUH8NiJ4ABRnvoI7CEAOuRhj2ZQu+BsE9Sa3HmDhEdUqDQ=="/>
+        </item>
+    </channel>
+</rss>

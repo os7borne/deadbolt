@@ -60,3 +60,19 @@ h2 { margin: 8px 10px 2px; font-size: 11px; font-weight: 600; letter-spacing: .0
 .sub.expired, .t span.expired { color: #FF8C7E; }
 .hint { margin: 6px 10px 2px; font-size: 11px; color: #8A8F99; }
 .fill[disabled] { opacity: .6; cursor: progress; }
+
+/* Add login */
+.addBtn { margin: 6px 10px 2px; height: 34px; border-radius: 9px; border: 1px dashed #3A3E48; background: transparent; color: #D4AF6A; }
+.addBtn:hover { background: #1A1C22; }
+.add { display: flex; flex-direction: column; gap: 8px; padding: 4px 6px 6px; }
+.add label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #A3A7B0; }
+.add input { height: 34px; padding: 0 10px; border-radius: 9px; border: 1px solid #2B2E36; background: #0B0C0F; color: #F2F0EA; font: inherit; width: 100%; }
+.add input:focus { outline: 2px solid #D4AF6A; outline-offset: 1px; }
+.add .pw { display: flex; gap: 6px; }
+.add .pw input { flex: 1; min-width: 0; }
+.add .sub { margin: -2px 0 0; font-size: 11.5px; color: #8A8F99; }
+.add .sub.err { color: #FF8C7E; }
+.add .btns { display: flex; gap: 8px; }
+.add .btns .fill { flex: 1; height: 34px; }
+.add .btns .ghost { height: 34px; }
+.link { background: none; border: 0; padding: 0; color: #D4AF6A; font-size: 11.5px; text-decoration: underline; }

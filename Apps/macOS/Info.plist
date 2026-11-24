@@ -28,5 +28,17 @@
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Unlock your Deadbolt vault.</string>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://deadbolt.osborne.vc/updates/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>ewsqbiqfP/23fu5OKPNNp9tR8O2T1Vd7AW8cfe5XEHA=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>3600</integer>
 </dict>
 </plist>

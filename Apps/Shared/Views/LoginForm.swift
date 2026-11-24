@@ -19,6 +19,8 @@ final class LoginFormModel {
     /// Other websites this login works on (each its own row in the form).
     var extraSites: [String]
     var customFields: [CustomField]
+    /// The owner's own name for this login. Empty means "use the website's name".
+    var name: String
     var username: String
     var password: String
     var totp: String
@@ -37,6 +39,7 @@ final class LoginFormModel {
         self.site = original?.sites.first ?? site
         self.extraSites = Array(original?.sites.dropFirst() ?? [])
         self.customFields = original?.customFields ?? []
+        self.name = original?.customName ?? ""
         self.username = original?.username ?? ""
         self.password = original?.password ?? ""
         self.totp = original?.totpSecret ?? ""
@@ -45,6 +48,9 @@ final class LoginFormModel {
     }
 
     var isNew: Bool { original == nil }
+    /// What the login is called when no name is typed, shown as the Name box's placeholder.
+    var namePlaceholder: String { primarySite.map(Site.displayName) ?? "Name" }
+    private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
     var primarySite: String? { Site.normalize(site) }
     var sites: [String] {
         var out: [String] = []
@@ -71,7 +77,14 @@ final class LoginFormModel {
         extraSites.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty && Site.normalize($0) == nil }
             ? "One of the other websites isn’t a web address like github.com" : nil
     }
-    var passwordChanged: Bool { original != nil && password != original?.password }
+    /// Only a real password being replaced goes to history; adding one to a login that had none doesn't.
+    var passwordChanged: Bool { original != nil && !(original?.password.isEmpty ?? true) && password != original?.password }
+
+    /// Said under an empty password box: leaving it empty is fine (sign-in by emailed link or code).
+    var noPasswordHint: String? {
+        guard password.isEmpty, !allowsCodeOnly, original?.passkeyIDs.isEmpty ?? true else { return nil }
+        return "Optional. Leave empty for sites that email you a sign-in link or code"
+    }
 
     /// Where the login will be offered, or why the website isn't usable yet.
     var siteHint: (text: String, ok: Bool)? {
@@ -91,8 +104,7 @@ final class LoginFormModel {
         if let p = extraSiteProblem, !isCodeOnly { return p }
         if primarySite == nil { return "Add the website" }
         if username.trimmingCharacters(in: .whitespaces).isEmpty { return "Add a username or email" }
-        if password.isEmpty && (original?.passkeyIDs.isEmpty ?? true) { return "Add a password" }
-        return nil
+        return nil   // the password is optional: sites that sign you in by emailed link or code have none
     }
 
     /// A code with nothing else: no password to save. Only in the code flows.
@@ -135,6 +147,8 @@ final class LoginFormModel {
         if var item = original {
             if isCodeOnly, !codeTitle.trimmingCharacters(in: .whitespaces).isEmpty { item.title = codeTitle.trimmingCharacters(in: .whitespaces) }
             item.sites = sites
+            // Empty name: back to the website's name (also follows a changed website).
+            if !isCodeOnly { item.title = trimmedName.isEmpty ? LoginItem.defaultTitle(for: sites) : trimmedName }
             item.username = user
             item.changePassword(to: password)
             item.totpSecret = secret.isEmpty ? nil : secret
@@ -150,6 +164,7 @@ final class LoginFormModel {
         try session.mutate { v in
             guard var item = v.login(id) else { return }
             for s in sites where !item.sites.contains(s) { item.sites.append(s) }
+            if !trimmedName.isEmpty { item.title = trimmedName }
             if !secret.isEmpty { item.totpSecret = secret }
             if !label.isEmpty { item.label = label }
             if !notes.isEmpty { item.notes = notes }
