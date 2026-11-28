@@ -119,12 +119,21 @@ public struct Vault: Codable, Equatable, Sendable {
         case unchanged(existing: UUID)
     }
 
+    /// The account a submitted sign-in belongs to. A login that covers the host wins; otherwise a login for the same
+    /// registrable domain with the same username (saved for account.live.com, signing in on login.live.com).
+    /// Only saving uses this wider match: filling stays strict (`accounts(for:)`), so a page is never offered a
+    /// sibling subdomain's password.
+    func existingLogin(host: String, canonicalUser user: String) -> LoginItem? {
+        let sameUser = logins.filter { Self.canonicalUsername($0.username) == user }
+        if let exact = sameUser.first(where: { $0.matches(host: host) }) { return exact }
+        guard let h = Site.normalize(host) else { return nil }
+        return sameUser.first { $0.sites.contains { PublicSuffix.sameSite($0, h) } }
+    }
+
     /// What to offer when a sign-in or sign-up form is submitted.
     public func proposeSave(host: String, username: String, password: String) -> SaveProposal {
         let user = Self.canonicalUsername(username)
-        guard let existing = logins.first(where: { $0.matches(host: host) && Self.canonicalUsername($0.username) == user }) else {
-            return .new
-        }
+        guard let existing = existingLogin(host: host, canonicalUser: user) else { return .new }
         // Saving an account with no password never touches one that exists: an empty value must not erase a real password.
         if password.isEmpty { return .unchanged(existing: existing.id) }
         return existing.password == password ? .unchanged(existing: existing.id) : .update(existing: existing.id)

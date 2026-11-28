@@ -2,11 +2,18 @@ import DeadboltCore
 import SwiftUI
 
 /// One row in the vault list: a single login, or a site with several accounts.
-struct SiteGroup: Identifiable, Hashable {
+struct SiteGroup: Identifiable, Hashable, Listable {
     let site: String
     let title: String
     let logins: [LoginItem]
     var id: String { site }
+    var sortName: String { title }
+    var sortTiebreak: String { "" }
+    var sortTypeRank: Int { 0 }
+    var sortID: String { site }
+    var createdAt: Date { logins.map(\.createdAt).min() ?? .distantPast }
+    var updatedAt: Date { logins.map(\.updatedAt).max() ?? .distantPast }
+    var lastUsedAt: Date? { logins.compactMap(\.lastUsedAt).max() }
     var hasPasskey: Bool { logins.contains { !$0.passkeyIDs.isEmpty } }
 
     static func == (a: SiteGroup, b: SiteGroup) -> Bool { a.site == b.site && a.logins.map(\.id) == b.logins.map(\.id) }
@@ -17,6 +24,9 @@ enum VaultFilter: String, CaseIterable { case all = "All", websites = "Websites"
 
 struct VaultListView: View {
     @Environment(VaultSession.self) private var session
+    /// How the lists are ordered. Per device: it lives in this iPhone's settings and is not synced.
+    @AppStorage("listSort", store: AppConfig.defaults) private var sortRaw = ListSort.default.rawValue
+    private var sort: ListSort { ListSort(stored: sortRaw) }
     @State private var query = ""
     @State private var filter = VaultFilter.all
     @State private var editing: LoginItem?
@@ -79,6 +89,11 @@ struct VaultListView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 16) {
+                    Menu {
+                        Picker("Sort by", selection: $sortRaw) {
+                            ForEach(ListSort.allCases) { Text($0.label).tag($0.rawValue) }
+                        }
+                    } label: { Image(systemName: "arrow.up.arrow.down") }.accessibilityLabel("Sort by")
                     NavigationLink { GeneratorView() } label: { Image(systemName: "wand.and.stars") }.accessibilityLabel("Password generator")
                     Menu {
                         Button { adding = true } label: { Label("Login", systemImage: "key.horizontal") }
@@ -131,7 +146,7 @@ struct VaultListView: View {
         return bySite.map { site, items in
             SiteGroup(site: site, title: items[0].title, logins: session.vault.accounts(for: site).filter { a in items.contains { $0.id == a.id } })
         }
-        .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        .sorted(by: sort.areInIncreasingOrder)
     }
 
     /// Logins and passkeys only: standalone one-time codes live in the Codes tab.
@@ -139,11 +154,21 @@ struct VaultListView: View {
 
     // MARK: cards, identities, notes
 
-    private enum Entry: Identifiable {
+    private enum Entry: Identifiable, Listable {
         case login(LoginItem), card(CardItem), identity(IdentityItem), note(NoteItem)
         var id: UUID {
             switch self { case .login(let x): x.id; case .card(let x): x.id; case .identity(let x): x.id; case .note(let x): x.id }
         }
+        private var item: any Listable {
+            switch self { case .login(let x): x; case .card(let x): x; case .identity(let x): x; case .note(let x): x }
+        }
+        var sortName: String { item.sortName }
+        var sortTiebreak: String { item.sortTiebreak }
+        var sortTypeRank: Int { item.sortTypeRank }
+        var sortID: String { item.sortID }
+        var createdAt: Date { item.createdAt }
+        var updatedAt: Date { item.updatedAt }
+        var lastUsedAt: Date? { item.lastUsedAt }
         var title: String {
             switch self { case .login(let x): x.title; case .card(let x): x.title; case .identity(let x): x.shownTitle; case .note(let x): x.title }
         }
@@ -158,12 +183,7 @@ struct VaultListView: View {
         if filter == .all || filter == .cards { out += session.vault.cards.filter { ok($0.searchText) }.map(Entry.card) }
         if filter == .all || filter == .identities { out += session.vault.identities.filter { ok($0.searchText) }.map(Entry.identity) }
         if filter == .all || filter == .notes { out += session.vault.notes.filter { ok($0.searchText) }.map(Entry.note) }
-        return out.sorted { a, b in
-            let c = a.title.localizedCaseInsensitiveCompare(b.title)
-            if c != .orderedSame { return c == .orderedAscending }
-            if case .login(let x) = a, case .login(let y) = b { return x.username.localizedCaseInsensitiveCompare(y.username) == .orderedAscending }
-            return a.rank < b.rank
-        }
+        return sort.sorted(out)
     }
 
     private var vaultItemCount: Int { vaultLogins.count + session.vault.cards.count + session.vault.identities.count + session.vault.notes.count }

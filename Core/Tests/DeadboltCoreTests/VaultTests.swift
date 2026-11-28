@@ -24,6 +24,29 @@ import Testing
 @Suite struct VaultTests {
     let t0 = Date(timeIntervalSince1970: 1_800_000_000)
 
+    @Test func siblingSubdomainUpdatesInsteadOfDuplicating() throws {
+        var v = Vault()
+        let id = try v.save(host: "account.live.com", username: "me@gmail.com", password: "one", now: t0)
+        #expect(v.proposeSave(host: "login.live.com", username: "ME@gmail.com", password: "two") == .update(existing: id))
+        // an email-only sign-in on the sibling must not create a passwordless duplicate
+        #expect(v.proposeSave(host: "login.live.com", username: "me@gmail.com", password: "") == .unchanged(existing: id))
+        try v.save(host: "login.live.com", username: "me@gmail.com", password: "two", now: t0)
+        #expect(v.logins.count == 1)
+        #expect(v.login(id)?.password == "two")
+        // filling stays strict
+        #expect(v.accounts(for: "login.live.com").isEmpty)
+    }
+
+    @Test func siblingMatchNeedsSameUserAndSameRegistrableDomain() throws {
+        var v = Vault()
+        try v.save(host: "a.co.uk", username: "me", password: "one", now: t0)
+        try v.save(host: "account.live.com", username: "me", password: "one", now: t0)
+        #expect(v.proposeSave(host: "b.co.uk", username: "me", password: "x") == .new)
+        #expect(v.proposeSave(host: "login.live.com", username: "other", password: "x") == .new)
+        #expect(v.proposeSave(host: "microsoft.com", username: "me", password: "x") == .new)
+        #expect(v.proposeSave(host: "live.com.evil.example", username: "me", password: "x") == .new)
+    }
+
     @Test func savingSameSiteAndUserUpdatesInsteadOfDuplicating() throws {
         var v = Vault()
         let id = try v.save(host: "https://github.com/login", username: "alex", password: "one", now: t0)

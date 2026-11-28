@@ -3,6 +3,19 @@
     <channel>
         <title>Deadbolt</title>
         <item>
+            <title>0.1.3</title>
+            <pubDate>Tue, 24 Nov 2026 19:39:39 +0530</pubDate>
+            <link>https://deadbolt.osborne.vc/</link>
+            <sparkle:version>4</sparkle:version>
+            <sparkle:shortVersionString>0.1.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<meta charset="utf-8"><style>body{font:13px -apple-system,sans-serif}code{font:12px ui-monospace}</style><ul>
+<li>Sort your lists: a new sort button on the Mac list header and the iPhone Vault toolbar. Choose Name (A–Z or Z–A), Last modified, Last used or Date added. Each device remembers its own choice.</li>
+<li>Improvements to how names are shown and kept in order, including the Websites view.</li>
+</ul>]]></description>
+            <enclosure url="https://deadbolt.osborne.vc/updates/Deadbolt-0.1.3.zip" length="8111988" type="application/octet-stream" sparkle:edSignature="BBRjZqV5P0YUQxHwbVvOFWecFz67Nss5XKhlE0ziFk4Hkefp/Fj4yMcKSZwh5kJm65fNsglG7DOggK1CFjTvAQ=="/>
+        </item>
+        <item>
             <title>0.1.2</title>
             <pubDate>Tue, 24 Nov 2026 00:09:34 +0530</pubDate>
             <link>https://deadbolt.osborne.vc/</link>

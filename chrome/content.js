@@ -120,6 +120,7 @@
     setter ? setter.call(el, value) : (el.value = value);
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
+    flashFilled(el);   // a short visual cue only; the value above is already in
   }
 
   // ---------- UI (closed shadow root) ----------
@@ -166,13 +167,66 @@
       .wait b { display: block; font-size: 14px; font-weight: 600; }
       .wait span { display: block; margin-top: 2px; font-size: 12px; color: #A3A7B0; }
       @media (prefers-reduced-motion: reduce) { .wait.busy .ico::after { animation: none; opacity: .6; } }
+      /* Fill cue: a brass sweep and a small lock over each field Deadbolt fills. Drawn here, never on the page itself. */
+      .fx { position: fixed; top: 0; left: 0; width: 0; height: 0; pointer-events: none; }
+      .glow { position: fixed; pointer-events: none; overflow: hidden; animation: glow 950ms ease-out forwards; }
+      .glow::before { content: ""; position: absolute; inset: 0; transform: translateX(-100%); animation: sweep 650ms cubic-bezier(.3,.1,.2,1) forwards;
+                      background: linear-gradient(100deg, transparent 0%, rgba(212,175,106,.35) 40%, rgba(255,236,190,.75) 50%, rgba(212,175,106,.35) 60%, transparent 100%); }
+      @keyframes glow { 0% { box-shadow: 0 0 0 2px rgba(212,175,106,.95), 0 0 16px 2px rgba(212,175,106,.55); opacity: 1; }
+                        65% { opacity: 1; } 100% { box-shadow: 0 0 0 2px rgba(212,175,106,0), 0 0 16px 2px rgba(212,175,106,0); opacity: 0; } }
+      @keyframes sweep { to { transform: translateX(100%); } }
+      .badge { position: fixed; pointer-events: none; display: grid; place-items: center; border-radius: 50%; background: #D4AF6A; color: #1A1408;
+               box-shadow: 0 2px 8px rgba(0,0,0,.35); animation: pop 1150ms cubic-bezier(.2,1.5,.4,1) forwards; }
+      .badge svg { width: 62%; height: 62%; }
+      @keyframes pop { 0% { transform: scale(0); opacity: 0; } 22% { transform: scale(1); opacity: 1; } 78% { transform: scale(1); opacity: 1; } 100% { transform: scale(.85); opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) {
+        .glow::before { display: none; }
+        .glow { animation: glowStill 900ms linear forwards; }
+        @keyframes glowStill { 0% { box-shadow: 0 0 0 2px rgba(212,175,106,.9); opacity: 1; } 100% { box-shadow: 0 0 0 2px rgba(212,175,106,.9); opacity: 0; } }
+        .badge { animation: badgeStill 900ms linear forwards; }
+        @keyframes badgeStill { 0% { opacity: 1; } 100% { opacity: 0; } }
+      }
     </style>
     <div class="menu" hidden role="listbox" aria-label="Deadbolt"></div>
     <div class="card" hidden role="dialog" aria-label="Deadbolt"></div>
-    <div class="wait" hidden role="status" aria-live="polite"></div>`;
+    <div class="wait" hidden role="status" aria-live="polite"></div>
+    <div class="fx" aria-hidden="true"></div>`;
+  const fx = root.querySelector(".fx");
   const menu = root.querySelector(".menu");
   const card = root.querySelector(".card");
   const wait = root.querySelector(".wait");
+  // ---------- fill cue ----------
+
+  const lockSvg = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><rect x="5" y="11" width="14" height="10" rx="2.4" fill="currentColor"/></svg>`;
+  let fxNext = 0;
+  /** Fields filled together (username, then password) get their cue a moment apart, so it reads as a sequence. */
+  function flashFilled(el) {
+    try {
+      const now = performance.now(), delay = Math.max(0, fxNext - now);
+      fxNext = now + delay + 140;
+      setTimeout(() => drawFill(el), delay);
+    } catch { /* a cue must never get in the way of filling */ }
+  }
+  function drawFill(el) {
+    try {
+      if (!el.isConnected) return;
+      const r = el.getBoundingClientRect();
+      if (r.width < 8 || r.height < 8 || r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) return;
+      const radius = getComputedStyle(el).borderRadius;
+      const glow = document.createElement("div");
+      glow.className = "glow";
+      glow.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;border-radius:${/^[\d.]+(px|%|em|rem)?( [\d.]+(px|%|em|rem)?){0,3}$/.test(radius) ? radius : "6px"};`;
+      const size = Math.max(12, Math.min(18, r.height - 8));
+      const badge = document.createElement("div");
+      badge.className = "badge";
+      badge.style.cssText = `left:${r.right - size - 8}px;top:${r.top + (r.height - size) / 2}px;width:${size}px;height:${size}px;`;
+      badge.innerHTML = lockSvg;
+      attach();   // the overlay is only added to the page when something needs it
+      fx.append(glow, badge);
+      setTimeout(() => { glow.remove(); badge.remove(); }, 1400);
+    } catch { /* ignore */ }
+  }
+
   // The logo is drawn inline: loading the extension's own icon file would need it exposed to every page,
   // which would also let pages detect that Deadbolt is installed.
   const logo = `<svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
@@ -358,6 +412,7 @@
     setter ? setter.call(el, option.value) : (el.value = option.value);
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
+    flashFilled(el);
   }
 
   async function showFillMenu(field, group, force = false) {

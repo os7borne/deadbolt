@@ -26,6 +26,9 @@ struct MacMainView: View {
     /// Column widths the owner dragged them to; kept between launches. Double-click a divider to reset it.
     @AppStorage("macSidebarWidth", store: AppConfig.defaults) private var sidebarWidth = 204.0
     @AppStorage("macListWidth", store: AppConfig.defaults) private var listWidth = 320.0
+    /// How the lists are ordered. Per device: it lives in this Mac's settings and is not synced.
+    @AppStorage("listSort", store: AppConfig.defaults) private var sortRaw = ListSort.default.rawValue
+    private var sort: ListSort { ListSort(stored: sortRaw) }
     private static let minDetail = 340.0
 
     var body: some View {
@@ -271,6 +274,18 @@ struct MacMainView: View {
                 Text(title(filter)).font(.db(13, .semibold))
                 Text("\(filter == .websites ? groups.count : rows.count)").font(.dbMono(11.5)).foregroundStyle(DB.text3)
                 Spacer()
+                if filter != .codes {
+                    Menu {
+                        Picker("Sort by", selection: $sortRaw) {
+                            ForEach(ListSort.allCases) { Text($0.label).tag($0.rawValue) }
+                        }
+                        .pickerStyle(.inline)
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down").frame(width: 26, height: 26)
+                    }
+                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                    .help("Sort: \(sort.label)").accessibilityLabel("Sort by")
+                }
                 if filter == .codes {
                     Button { addingCode = true } label: { Label("Add Code", systemImage: "plus") }
                         .buttonStyle(MacButtonStyle()).help("Add a one-time code")
@@ -398,7 +413,7 @@ struct MacMainView: View {
 
     // MARK: cards, identities, notes
 
-    private enum Row: Identifiable {
+    private enum Row: Identifiable, Listable {
         case login(LoginItem), card(CardItem), identity(IdentityItem), note(NoteItem)
         var id: UUID {
             switch self { case .login(let x): x.id; case .card(let x): x.id; case .identity(let x): x.id; case .note(let x): x.id }
@@ -406,6 +421,16 @@ struct MacMainView: View {
         var title: String {
             switch self { case .login(let x): x.title; case .card(let x): x.title; case .identity(let x): x.title; case .note(let x): x.title }
         }
+        private var item: any Listable {
+            switch self { case .login(let x): x; case .card(let x): x; case .identity(let x): x; case .note(let x): x }
+        }
+        var sortName: String { item.sortName }
+        var sortTiebreak: String { item.sortTiebreak }
+        var sortTypeRank: Int { item.sortTypeRank }
+        var sortID: String { item.sortID }
+        var createdAt: Date { item.createdAt }
+        var updatedAt: Date { item.updatedAt }
+        var lastUsedAt: Date? { item.lastUsedAt }
     }
 
     /// Everything the list shows for the current filter. Logins keep their own filters; the new kinds show in All and their own tab.
@@ -417,7 +442,7 @@ struct MacMainView: View {
         let cards: [Row] = filter == .all || filter == .cards ? session.vault.cards.filter { ok($0.searchText) }.map(Row.card) : []
         let identities: [Row] = filter == .all || filter == .identities ? session.vault.identities.filter { ok($0.searchText) }.map(Row.identity) : []
         let notes: [Row] = filter == .all || filter == .notes ? session.vault.notes.filter { ok($0.searchText) }.map(Row.note) : []
-        return (logins + cards + identities + notes).sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        return sort.sorted(logins + cards + identities + notes)
     }
 
     @ViewBuilder private func rowView(_ r: Row) -> some View {
@@ -506,7 +531,7 @@ struct MacMainView: View {
             MacSiteGroup(id: site, site: logins[0].sites.first, title: logins[0].title,
                          logins: logins.sorted { a, b in a.preferred != b.preferred ? a.preferred : a.username.localizedCaseInsensitiveCompare(b.username) == .orderedAscending })
         }
-        .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        .sorted(by: sort.areInIncreasingOrder)
     }
 
     private var items: [LoginItem] {
@@ -1087,11 +1112,18 @@ struct MacSiteDetail: View {
 }
 
 /// Several accounts on one site, for the Websites filter.
-struct MacSiteGroup: Identifiable {
+struct MacSiteGroup: Identifiable, Listable {
     let id: String
     let site: String?
     let title: String
     let logins: [LoginItem]
+    var sortName: String { title }
+    var sortTiebreak: String { "" }
+    var sortTypeRank: Int { 0 }
+    var sortID: String { id }
+    var createdAt: Date { logins.map(\.createdAt).min() ?? .distantPast }
+    var updatedAt: Date { logins.map(\.updatedAt).max() ?? .distantPast }
+    var lastUsedAt: Date? { logins.compactMap(\.lastUsedAt).max() }
 }
 
 /// Lets the window's content run under the title bar (hidden, transparent) so the sidebar can carry the traffic lights.
